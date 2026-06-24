@@ -80,6 +80,8 @@ export default function App() {
   const voiceTimeoutRef1 = useRef(null);
   const voiceTimeoutRef2 = useRef(null);
   const mintingIntervalRef = useRef(null);
+  const utteranceRef = useRef(null);
+  const speakTimeoutRef = useRef(null);
 
   // Mode Reference to prevent stale closures in async timeout speech synthese
   const modeRef = useRef(currentMode);
@@ -116,6 +118,7 @@ export default function App() {
     if (voiceTimeoutRef1.current) clearTimeout(voiceTimeoutRef1.current);
     if (voiceTimeoutRef2.current) clearTimeout(voiceTimeoutRef2.current);
     if (mintingIntervalRef.current) clearInterval(mintingIntervalRef.current);
+    if (speakTimeoutRef.current) clearTimeout(speakTimeoutRef.current);
   };
 
   // Update body tag classes to reflect mode adaptation dynamically
@@ -125,7 +128,9 @@ export default function App() {
       document.body.className = "bg-indigo-50/50 text-slate-800 min-h-screen flex flex-col antialiased";
       stopWebcamStream();
       stopMicStream();
-      if (window.speechSynthesis) window.speechSynthesis.cancel();
+      if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+      }
       return;
     }
 
@@ -133,7 +138,7 @@ export default function App() {
     document.body.className = "bg-indigo-50/50 text-slate-800 min-h-screen flex flex-col antialiased";
     
     // Explicitly cancel any speaking immediately
-    if (window.speechSynthesis) {
+    if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
     }
 
@@ -164,7 +169,7 @@ export default function App() {
 
     // Cleanup when mode transitions
     return () => {
-      if (window.speechSynthesis) {
+      if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
       }
       clearAllTimeoutsAndIntervals();
@@ -177,7 +182,9 @@ export default function App() {
       stopWebcamStream();
       stopMicStream();
       clearAllTimeoutsAndIntervals();
-      if (window.speechSynthesis) window.speechSynthesis.cancel();
+      if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+      }
     };
   }, []);
 
@@ -492,27 +499,49 @@ export default function App() {
   const speakText = (text, allowedMode) => {
     // Guard: Prevent speech if the current active mode doesn't match the permitted layout
     if (allowedMode && modeRef.current !== allowedMode) {
-      if (window.speechSynthesis) window.speechSynthesis.cancel();
+      if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+      }
       return;
     }
 
     if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel(); // Reset active queue
-      
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'id-ID';
-      utterance.rate = 1.0;
-      utterance.pitch = 1.0;
-      
-      const voices = window.speechSynthesis.getVoices();
-      const idVoice = voices.find(v => v.lang.includes('id') || v.name.toLowerCase().includes('indonesian'));
-      if (idVoice) utterance.voice = idVoice;
+      // Only cancel if speaking to avoid thread lockups
+      if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+      }
 
-      utterance.onstart = () => setIsNarrating(true);
-      utterance.onend = () => setIsNarrating(false);
-      utterance.onerror = () => setIsNarrating(false);
+      if (speakTimeoutRef.current) clearTimeout(speakTimeoutRef.current);
 
-      window.speechSynthesis.speak(utterance);
+      // Delay speaking by 50ms to allow cancel to complete and prevent locks
+      speakTimeoutRef.current = setTimeout(() => {
+        // Double check mode after timeout
+        if (allowedMode && modeRef.current !== allowedMode) return;
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utteranceRef.current = utterance; // Keep persistent ref to prevent GC
+
+        utterance.lang = 'id-ID';
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+        
+        const voices = window.speechSynthesis.getVoices();
+        const idVoice = voices.find(v => v.lang.includes('id') || v.name.toLowerCase().includes('indonesian'));
+        if (idVoice) utterance.voice = idVoice;
+
+        utterance.onstart = () => setIsNarrating(true);
+        utterance.onend = () => {
+          setIsNarrating(false);
+          utteranceRef.current = null;
+        };
+        utterance.onerror = (e) => {
+          console.error("SpeechSynthesis error:", e);
+          setIsNarrating(false);
+          utteranceRef.current = null;
+        };
+
+        window.speechSynthesis.speak(utterance);
+      }, 50);
     }
   };
 
@@ -628,7 +657,7 @@ export default function App() {
 
   // Switch selector modes
   const handleModeChange = (mode) => {
-    if (window.speechSynthesis) {
+    if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
     }
     clearAllTimeoutsAndIntervals();
@@ -1271,7 +1300,11 @@ export default function App() {
                         <i className="fa-solid fa-play"></i> Putar Materi Suara
                       </button>
                       <button
-                        onClick={() => window.speechSynthesis.cancel()}
+                        onClick={() => {
+                          if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
+                            window.speechSynthesis.cancel();
+                          }
+                        }}
                         className="bg-black hover:bg-neutral-900 text-yellow-400 font-extrabold px-4 py-2.5 rounded-2xl text-[10px] md:text-xs border border-yellow-400 uppercase transition-all cursor-pointer"
                       >
                         Stop
