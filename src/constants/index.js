@@ -1,20 +1,15 @@
 export const REGULER_LYRICS = [
-  { time: 0, text: "Ayo kita kawan mengenal si Mars... 🎶" },
-  { time: 3, text: "Planet nomor empat, merah warnanya... 🌌" },
-  { time: 7, text: "Mengorbit Matahari bersama Bumi... 🪐" },
-  { time: 11, text: "Kaya besi oksida, itu tanahnya! 🔴" }
+  { time: 0, text: "Bumi planet kita, ketiga dari surya... 🎶" },
+  { time: 3, text: "Tempat tinggal kita, ada air udara... 🌍" },
+  { time: 7, text: "Berputar-putar, kelilingi mentari... ☀️" },
+  { time: 11, text: "Indah dan megah, ciptaan Tuhan ini... 🎵" }
 ];
 
 export const TUNANETRA_STORIES = [
   {
-    title: "Bagian 1: Kedatangan Kancil ke Planet Mars",
-    audioText: "Hai teman-teman, dengarkan petualangan Kancil yang menggunakan roket ramah lingkungan terbang ke luar angkasa menuju Mars. Mars adalah planet berwarna merah menyala karena permukaannya dilapisi debu besi berkarat. Di sana gravitasi lebih ringan, sehingga Kancil bisa melompat tinggi sekali seperti kangguru!",
-    question: "Apakah warna dari planet Mars?"
-  },
-  {
-    title: "Bagian 2: Atmosfer Mars yang Dingin",
-    audioText: "Di Mars udara sangat dingin sekali, Kancil memakai baju astronot bulu tebal. Di sana tidak banyak oksigen, jadi kita harus menggunakan tangki oksigen untuk bernafas. Di Mars juga ada gunung berapi terbesar di tata surya bernama Gunung Olympus Mons!",
-    question: "Apakah nama gunung terbesar di Mars?"
+    title: "Mengenal Bumi",
+    audioText: "Halo penjelajah hebat! Bayangkan kamu sedang melayang di ruang angkasa yang sangat sunyi. Di depanmu, ada sebuah bola raksasa berwarna biru yang sangat sejuk. Itu adalah Bumi, rumah kita. Dengarkan suara gemercik airnya... Bumi ini berputar pelan mengitari matahari yang hangat...",
+    question: "Apakah warna dari bola raksasa yang menjadi rumah kita?"
   }
 ];
 

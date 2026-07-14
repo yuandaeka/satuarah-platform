@@ -32,12 +32,12 @@ export default function ADHDMode({
                     --primary: #2ecc71;
                     --secondary: #3498db;
                     --danger: #e74c3c;
-                    --dark: #2c3e50;
+                    --dark: #0f172a;
                     --light: #ecf0f1;
                     --accent: #f1c40f;
                     font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-                    background-color: #f0f4f8;
-                    color: var(--dark);
+                    background-color: #020617; /* calm dark space */
+                    color: white;
                     position: fixed;
                     inset: 0;
                     z-index: 9999;
@@ -48,11 +48,11 @@ export default function ADHDMode({
                   
                   /* Glassmorphism Utility */
                   .adhd-glass {
-                    background: rgba(255, 255, 255, 0.4);
+                    background: rgba(30, 41, 59, 0.6);
                     backdrop-filter: blur(12px);
                     -webkit-backdrop-filter: blur(12px);
-                    border: 1px solid rgba(255, 255, 255, 0.5);
-                    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
                   }
 
                   .adhd-header {
@@ -93,9 +93,9 @@ export default function ADHDMode({
                     max-width: 1200px;
                     height: 70vh;
                     min-height: 500px;
-                    background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
+                    background: radial-gradient(circle at center, #1e293b 0%, #020617 100%);
                     border-radius: 24px;
-                    box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+                    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
                     overflow: hidden;
                     z-index: 1;
                   }
@@ -242,9 +242,9 @@ export default function ADHDMode({
                 ` }} />
 
                 <header className="adhd-header adhd-glass">
-                  <div className="adhd-header-title">🪐 Misi Kosmik SatuArah</div>
-                  <div className="adhd-stats">
-                    <div>📦 <span>{adhdScore}</span>/<span>8</span></div>
+                  <div className="adhd-header-title text-white">🪐 Misi Kosmik SatuArah</div>
+                  <div className="adhd-stats text-white">
+                    <div>🚀 Roket Maju: <span>{adhdScore * 10}</span> m</div>
                     <div>⏱️ <span>{adhdTimeLeft}</span>s</div>
                   </div>
                 </header>
@@ -319,11 +319,11 @@ export default function ADHDMode({
 
                     {/* Start Screen */}
                     {adhdGameState === 'start' && (
-                      <div className="adhd-overlay">
-                        <h1>Apakah Anda siap?</h1>
-                        <p>
-                          Gunakan tanganmu untuk memasukkan Planet ke Stasiun Dok.<br />
-                          Hanya masukkan benda yang merupakan planet.
+                      <div className="adhd-overlay" style={{background: 'rgba(15, 23, 42, 0.85)'}}>
+                        <h1 style={{color: 'white'}}>Apakah Anda siap?</h1>
+                        <p style={{color: '#94a3b8'}}>
+                          Pinch (cubit) gelembung BUMI dan lepaskan di orbit ketiga dari Matahari!<br />
+                          Roket akan meluncur maju jika kamu berhasil.
                         </p>
                         <button className="adhd-btn" onClick={startGame}>Mulai Game</button>
                       </div>
@@ -357,11 +357,11 @@ export default function ADHDMode({
 
                   <div className="adhd-sidebar">
                     <div className="adhd-instructions adhd-glass">
-                      <h3>Mission</h3>
-                      <ul>
-                        <li>Masukkan <b>semua Planet</b> ke stasiun.</li>
-                        <li><b>Cubit</b> jari untuk mengambil.</li>
-                        <li><b>Satu benda salah</b> = Misi Gagal.</li>
+                      <h3 style={{color: 'white'}}>Mission</h3>
+                      <ul style={{color: '#cbd5e1'}}>
+                        <li>Pinch (cubit) gelembung <b>BUMI</b>.</li>
+                        <li>Tempatkan di <b>orbit ke-3</b> dari Matahari.</li>
+                        <li>Jangan sampai salah tempat!</li>
                       </ul>
                       
                       {/* Controls inside instructions panel */}

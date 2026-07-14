@@ -603,26 +603,11 @@ export default function App() {
       { active: false, x: 0.5, y: 0.5, pinching: false, heldCardId: null, color: '#2ecc71' }
     ];
 
-    const ESSENTIAL_ITEMS = [
-      { name: 'Bumi', emoji: '🌍', essential: true, factSuccess: 'Keren! Bumi adalah planet hunian kita yang kaya air dan oksigen.' },
-      { name: 'Mars', emoji: '🔴', essential: true, factSuccess: 'Hebat! Mars adalah planet merah berbatu dan dingin.' },
-      { name: 'Jupiter', emoji: '🪐', essential: true, factSuccess: 'Luar biasa! Jupiter adalah planet terbesar di Tata Surya.' },
-      { name: 'Saturnus', emoji: '🪐', essential: true, factSuccess: 'Mantap! Saturnus terkenal dengan cincin esnya yang sangat indah.' },
-      { name: 'Merkurius', emoji: '🪨', essential: true, factSuccess: 'Wah! Merkurius adalah planet terdekat dengan matahari.' },
-      { name: 'Venus', emoji: '🌟', essential: true, factSuccess: 'Benar! Venus adalah planet terpanas yang bersinar terang.' },
-      { name: 'Uranus', emoji: '🧊', essential: true, factSuccess: 'Tepat! Uranus adalah planet raksasa es yang berputar miring.' },
-      { name: 'Neptunus', emoji: '🌀', essential: true, factSuccess: 'Bagus! Neptunus adalah planet biru terjauh yang berangin kencang.' }
-    ];
-
-    const USELESS_ITEMS = [
-      { name: 'Matahari', emoji: '☀️', essential: false, factFail: 'Gagal! Matahari adalah Bintang di pusat tata surya, bukan planet.' },
-      { name: 'Bulan', emoji: '🌕', essential: false, factFail: 'Gagal! Bulan adalah Satelit alami Bumi, bukan planet.' },
-      { name: 'Asteroid', emoji: '☄️', essential: false, factFail: 'Gagal! Asteroid adalah batuan angkasa kecil, bukan planet.' },
-      { name: 'Alien', emoji: '👽', essential: false, factFail: 'Gagal! Alien adalah makhluk luar angkasa fiksi, bukan planet.' },
-      { name: 'Komet', emoji: '🌠', essential: false, factFail: 'Gagal! Komet adalah bola salju debu, bukan planet.' },
-      { name: 'Satelit', emoji: '🛰️', essential: false, factFail: 'Gagal! Satelit adalah buatan manusia, bukan planet.' },
-      { name: 'Roket', emoji: '🚀', essential: false, factFail: 'Gagal! Roket adalah kendaraan luar angkasa, bukan planet.' },
-      { name: 'Black Hole', emoji: '🕳️', essential: false, factFail: 'Gagal! Lubang hitam menelan segalanya, bukan planet.' }
+    const PLANET_BUBBLES = [
+      { name: 'Bumi', emoji: '🌍', isEarth: true },
+      { name: 'Mars', emoji: '🔴', isEarth: false },
+      { name: 'Venus', emoji: '🌟', isEarth: false },
+      { name: 'Jupiter', emoji: '🪐', isEarth: false }
     ];
 
     // Spawn items using ratios (bx, by)
@@ -633,20 +618,14 @@ export default function App() {
       let bx, by;
       let isSafe = false;
       while (!isSafe) {
-        bx = 0.08 + Math.random() * 0.84;
-        by = 0.12 + Math.random() * 0.55; 
-        
-        // Camera is at top-right. To be safe, if bx > 0.65 and by < 0.45, it's unsafe.
-        if (bx > 0.65 && by < 0.45) {
-          isSafe = false;
-        } else {
-          isSafe = true;
-        }
+        bx = 0.08 + Math.random() * 0.15; // Put on the left side
+        by = 0.2 + Math.random() * 0.6; 
+        isSafe = true;
       }
       return { bx, by };
     };
 
-    ESSENTIAL_ITEMS.forEach(it => {
+    PLANET_BUBBLES.forEach(it => {
       const { bx, by } = getSafeCoords();
       spawned.push({
         ...it,
@@ -655,16 +634,6 @@ export default function App() {
         id: Math.random().toString(36).substr(2, 9)
       });
     });
-    for (let i = 0; i < 6; i++) { // Spawn 6 random obstacles
-      const template = USELESS_ITEMS[Math.floor(Math.random() * USELESS_ITEMS.length)];
-      const { bx, by } = getSafeCoords();
-      spawned.push({
-        ...template,
-        bx,
-        by,
-        id: Math.random().toString(36).substr(2, 9)
-      });
-    }
     gameStateRef.current.cards = spawned;
 
     const resizeCanvas = () => {
@@ -706,52 +675,34 @@ export default function App() {
       const w = canvas.width;
       const h = canvas.height;
 
-      // Clear with clean white background (identical to index.html)
+      // Clear with dark space background
       ctx.clearRect(0, 0, w, h);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, w, h);
 
-      // Update Particles
-      if (gameStateRef.current.particles && gameStateRef.current.particles.length > 0) {
-        const particles = gameStateRef.current.particles;
-        for (let i = particles.length - 1; i >= 0; i--) {
-          const p = particles[i];
-          p.x += p.vx;
-          p.y += p.vy;
-          p.alpha -= 0.025;
-          p.life--;
-          if (p.alpha <= 0 || p.life <= 0) {
-            particles.splice(i, 1);
-          } else {
-            ctx.save();
-            ctx.globalAlpha = p.alpha;
-            ctx.fillStyle = p.color;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-          }
-        }
-      }
-
-      // Draw Bag Zone (identical to index.html)
-      const bagHeight = Math.min(180, h * 0.25);
-      const bagY = h - bagHeight;
-
-      ctx.fillStyle = '#f8f9fa';
-      ctx.fillRect(0, bagY, w, bagHeight);
+      // Draw Sun and Orbits
+      const centerX = w / 2;
+      const centerY = h / 2;
       
-      ctx.setLineDash([10, 10]);
-      ctx.strokeStyle = '#ced4da';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(15, bagY + 15, w - 30, bagHeight - 30);
+      // Draw Orbits
+      const maxRadius = Math.min(w, h) * 0.45;
+      const orbitRadii = [maxRadius * 0.2, maxRadius * 0.45, maxRadius * 0.7, maxRadius * 0.95];
+      orbitRadii.forEach((r, idx) => {
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
+        ctx.strokeStyle = idx === 2 ? 'rgba(46, 204, 113, 0.4)' : 'rgba(255, 255, 255, 0.1)';
+        ctx.setLineDash(idx === 2 ? [8, 8] : []);
+        ctx.lineWidth = idx === 2 ? 4 : 2;
+        ctx.stroke();
+      });
       ctx.setLineDash([]);
 
-      ctx.fillStyle = '#adb5bd';
-      ctx.font = `bold ${Math.max(13, bagHeight * 0.15)}px Arial`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('🎒 JATUHKAN PLANET DI SINI', w / 2, bagY + bagHeight / 2);
+      // Draw Sun
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, maxRadius * 0.12, 0, Math.PI * 2);
+      ctx.fillStyle = '#f1c40f'; // Sun yellow
+      ctx.shadowBlur = 30;
+      ctx.shadowColor = '#f39c12';
+      ctx.fill();
+      ctx.shadowBlur = 0;
 
       // Responsive Item Size (identical to index.html)
       const baseSize = Math.min(w, h);
@@ -802,42 +753,44 @@ export default function App() {
           const card = gameStateRef.current.cards.find(c => c.id === cardId);
           
           if (card) {
-            const inBag = hand.y > 0.75;
+            const centerX = w / 2;
+            const centerY = h / 2;
+            const maxRadius = Math.min(w, h) * 0.45;
+            const targetRadius = maxRadius * 0.7; // orbit 3
+            
+            const distFromSun = Math.sqrt(Math.pow(hand.x * w - centerX, 2) + Math.pow(hand.y * h - centerY, 2));
+            const isOrbit3 = Math.abs(distFromSun - targetRadius) < 40;
 
-            if (inBag) {
-              if (!card.essential) {
-                // Game lost (instant) as in index.html
+            if (isOrbit3) {
+              if (!card.isEarth) {
                 gameStateRef.current.active = false;
                 setAdhdGameState('lost');
-                setAdhdFailReason(card.factFail || `Gagal! ${card.name} bukan merupakan planet.`);
+                setAdhdFailReason(`Gagal! ${card.name} bukan planet ketiga dari Matahari.`);
                 playTone(150, 'sawtooth', 0.5);
               } else {
                 gameStateRef.current.sortedCards.push(cardId);
-                const score = gameStateRef.current.sortedCards.length;
+                const score = gameStateRef.current.score + 1;
                 gameStateRef.current.score = score;
                 setAdhdScore(score);
 
-                // Reward tone, particles and confetti
+                // Haptic feedback
+                if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+
+                // Reward tone
                 playTone(587.33, 'sine', 0.15);
-                spawnParticles(hand.x * w, hand.y * h, hand.color, 15);
-                confetti({ particleCount: 15, origin: { y: 0.8 } });
+                spawnParticles(hand.x * w, hand.y * h, hand.color, 30);
+                confetti({ particleCount: 50, origin: { x: hand.x, y: hand.y } });
 
-                // Show success feedback fact
-                showFeedback(card.factSuccess, true);
+                showFeedback("Pop! 🎉 Tepat Sekali!", true);
 
-                if (score >= 8) { // total essential planets is 8
-                  playTone(523.25, 'sine', 0.15);
-                  setTimeout(() => playTone(659.25, 'sine', 0.15), 100);
-                  setTimeout(() => playTone(783.99, 'sine', 0.25), 200);
-                  setTimeout(() => {
-                    gameStateRef.current.active = false;
-                    setAdhdGameState('won');
-                    triggerBadgeMinting('adhd');
-                  }, 450);
-                }
+                setTimeout(() => {
+                  gameStateRef.current.active = false;
+                  setAdhdGameState('won');
+                  triggerBadgeMinting('adhd');
+                }, 1000);
               }
             } else {
-              // Not in bag: drop at current coords
+              // Not in target orbit
               card.bx = hand.x;
               card.by = hand.y;
             }

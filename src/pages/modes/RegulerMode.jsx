@@ -50,23 +50,23 @@ export default function RegulerMode({
         <div className="space-y-4">
           <div className="bubbly-card p-4 rounded-3xl text-center bg-white border-2">
             <div className="w-full h-36 bg-emerald-50 rounded-2xl flex items-center justify-center text-6xl shadow-inner mb-4 animate-float">
-              {regulerSlide === 0 ? '🪐' : regulerSlide === 1 ? '🔴' : '🌞'}
+              {regulerSlide === 0 ? '🌍' : regulerSlide === 1 ? '💧' : '☀️'}
             </div>
             
             {regulerSlide === 0 && (
               <div>
-                <h4 className="font-black text-sm text-slate-800 leading-tight">Mengenal Planet Mars</h4>
+                <h4 className="font-black text-sm text-slate-800 leading-tight">Mengenal Planet Bumi</h4>
                 <p className="text-[10px] text-slate-500 font-semibold mt-2 leading-relaxed">
-                  Mars adalah planet keempat dari Matahari. Permukaan Mars dipenuhi besi karat yang membuatnya tampak kemerahan di langit malam!
+                  Bumi adalah planet ketiga dari Matahari dalam Tata Surya. Ini adalah rumah kita yang sangat indah dan penuh petualangan di luar angkasa!
                 </p>
               </div>
             )}
 
             {regulerSlide === 1 && (
               <div>
-                <h4 className="font-black text-sm text-slate-800 leading-tight">Atmosfer yang Tipis</h4>
+                <h4 className="font-black text-sm text-slate-800 leading-tight">Rumah Bagi Kehidupan</h4>
                 <p className="text-[10px] text-slate-500 font-semibold mt-2 leading-relaxed">
-                  Tidak seperti Bumi, Mars memiliki atmosfer yang sangat tipis dan sebagian besar terbuat dari karbon dioksida. Di sana sangat dingin!
+                  Bumi adalah satu-satunya planet yang memiliki kehidupan karena memiliki air yang segar dan oksigen untuk kita bernapas.
                 </p>
               </div>
             )}
@@ -75,7 +75,7 @@ export default function RegulerMode({
               <div>
                 <h4 className="font-black text-sm text-slate-800 leading-tight">Kuis Cepat: Lencana Menunggumu!</h4>
                 <p className="text-[10px] text-slate-600 font-bold mt-2 leading-relaxed">
-                  Planet apa yang memiliki warna merah menyala karena debu besi berkarat?
+                  Planet apa yang memiliki kehidupan karena ada air dan oksigen?
                 </p>
                 <div className="grid grid-cols-2 gap-2 mt-4">
                   <button
@@ -87,7 +87,7 @@ export default function RegulerMode({
                     }}
                     className="bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[9px] py-2 px-3 rounded-xl cursor-pointer"
                   >
-                    Mars
+                    Bumi
                   </button>
                   <button
                     onClick={() => {
@@ -96,7 +96,7 @@ export default function RegulerMode({
                     }}
                     className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-[9px] py-2 px-3 rounded-xl cursor-pointer"
                   >
-                    Jupiter
+                    Mars
                   </button>
                 </div>
               </div>
@@ -134,7 +134,7 @@ export default function RegulerMode({
         <div className="space-y-4">
           <div className="bubbly-card p-5 rounded-3xl text-center bg-white border-2">
             <h4 className="font-black text-xs text-slate-700 mb-1">Mnemonic Audio Player</h4>
-            <p className="text-[9px] text-slate-400 font-semibold mb-4">Mengubah teks "Astrofisika Mars" menjadi lagu berima</p>
+            <p className="text-[9px] text-slate-400 font-semibold mb-4">Mengubah teks "Bumi Planet Kita" menjadi lagu berima</p>
             
             {/* Player panel visualizer */}
             <div className="w-full bg-slate-900 rounded-2xl p-4 flex flex-col items-center justify-center min-h-[120px] mb-4">
