@@ -1,1857 +1,1604 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import confetti from 'canvas-confetti';
 
-export default function App() {
-  // Global States
-  const [currentMode, setCurrentMode] = useState('regular');
-  const [walletTokens, setWalletTokens] = useState(0);
-  const [unlockedBadges, setUnlockedBadges] = useState({
-    regular: false,
-    deaf: false,
-    blind: false,
-    adhd: false,
-    dyslexia: false
-  });
-  
-  // Clock State
-  const [liveTime, setLiveTime] = useState('23:41 WIB');
+import Home from './pages/Home';
+import Belajar from './pages/Belajar';
+import Profile from './pages/Profile';
+import RegulerMode from './pages/modes/RegulerMode';
+import ADHDMode from './pages/modes/ADHDMode';
+import TunarunguMode from './pages/modes/TunarunguMode';
+import TunanetraMode from './pages/modes/TunanetraMode';
+import DisleksiaMode from './pages/modes/DisleksiaMode';
+import { REGULER_LYRICS, TUNANETRA_STORIES, INITIAL_PLANET_CARDS } from './constants';
+import { playTone } from './utils/audio';
 
-  // Page Routing State (Simulates Page Transitions)
-  const [isChatpageActive, setIsChatpageActive] = useState(false);
+
+export default function App() {
+  // --- Global Navigation & Auth States ---
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [username, setUsername] = useState('Yuanda Eka');
+  const [selectedAvatar, setSelectedAvatar] = useState('🚀'); // default avatar emoji
+  const [currentTab, setCurrentTab] = useState('home'); // 'home' | 'belajar' | 'profile'
+  
+  // --- Active Learning Mode (null means selection grid) ---
+  const [selectedMode, setSelectedMode] = useState(null); // 'reguler' | 'adhd' | 'tunarungu' | 'tunanetra' | 'disleksia'
+  
+  // --- Reguler Mode Sub-sections ---
+  const [regulerSubMode, setRegulerSubMode] = useState(null); // 'visual' | 'audio'
+  const [regulerSlide, setRegulerSlide] = useState(0);
+  const [karaokePlaying, setKaraokePlaying] = useState(false);
+  const [karaokeLyricIndex, setKaraokeLyricIndex] = useState(-1);
+  const karaokeIntervalRef = useRef(null);
+
+  // --- ADHD Mode states (Pinch & Drop Hand-Tracking Game) ---
+  const [adhdScore, setAdhdScore] = useState(0);
+  const [adhdGameState, setAdhdGameState] = useState('loading'); // 'loading' | 'start' | 'playing' | 'won' | 'lost'
+  const [adhdCamReady, setAdhdCamReady] = useState(false);
+  const [adhdCamError, setAdhdCamError] = useState('');
+  const [adhdControlMode, setAdhdControlMode] = useState('camera'); // 'camera' | 'mouse'
+  const [adhdTimeLeft, setAdhdTimeLeft] = useState(60);
+  const [adhdFailReason, setAdhdFailReason] = useState('');
+  const [feedbackToast, setFeedbackToast] = useState(null); // { text, type }
+  const [adhdFocusSound, setAdhdFocusSound] = useState(false);
+  
+
+  
+  const adhdVideoRef = useRef(null);
+  const adhdOverlayCanvasRef = useRef(null);
+  const adhdHandsRef = useRef(null);
+  const adhdCameraRef = useRef(null);
+  const adhdStreamRef = useRef(null);
+  const adhdAnimRef = useRef(null);
+  
+  const adhdGameCanvasRef = useRef(null);
+  const adhdGameLoopRef = useRef(null);
+  const focusNodesRef = useRef([]);
+  const toastTimeoutRef = useRef(null);
+
+  const gameStateRef = useRef({
+    active: false,
+    score: 0,
+    controlMode: 'camera',
+    handStates: [
+      { active: false, x: 0.5, y: 0.5, pinching: false, heldCardId: null, color: '#3498db' },
+      { active: false, x: 0.5, y: 0.5, pinching: false, heldCardId: null, color: '#2ecc71' }
+    ],
+    wrongFlashCardId: null,
+    cards: [],
+    timeLeft: 60,
+    particles: [],
+    sortedCards: []
+  });
+
+  const ADHD_PLANET_CARDS = useMemo(() => INITIAL_PLANET_CARDS, []);
+
+  // --- Tunarungu Mode States ---
+  const [tunarunguComicPage, setTunarunguComicPage] = useState(0);
+  const [activeSignWord, setActiveSignWord] = useState(null); // word to show sign popup
+
+  // --- Tunanetra Mode States ---
+  const [isTunanetraNarrating, setIsTunanetraNarrating] = useState(false);
+  const [tunanetraStoryIndex, setTunanetraStoryIndex] = useState(0);
+  const [micListeningSimulated, setMicListeningSimulated] = useState(false);
+  const [tunanetraAnswerResult, setTunanetraAnswerResult] = useState('');
+
+  // --- Disleksia Mode States ---
+  const [rulerActive, setRulerActive] = useState(true);
+  const [rulerTop, setRulerTop] = useState(250);
+  const [disleksiaChallenge, setDisleksiaChallenge] = useState('trace'); // 'trace' | 'read'
+  const [isDyslexiaTracing, setIsDyslexiaTracing] = useState(false);
+  const [dyslexiaTraceComplete, setDyslexiaTraceComplete] = useState(false);
+  const dyslexiaCanvasRef = useRef(null);
+  
+  // Reading & Speech Recognition States for Dyslexia
+  const [isReadingMicActive, setIsReadingMicActive] = useState(false);
+  const [readingResultText, setReadingResultText] = useState('');
+  const [dyslexiaPronounceCorrect, setDyslexiaPronounceCorrect] = useState(false);
+  const [dyslexiaMouthShape, setDyslexiaMouthShape] = useState('neutral'); // 'neutral' | 'a' | 'u' | 'i'
+
+  // --- Profile, statistics, and Badges ---
+  const [walletTokens, setWalletTokens] = useState(3);
+  const streakDays = 5;
+  const learningDuration = 45; // in minutes
+  const [unlockedBadges, setUnlockedBadges] = useState({
+    reguler: true,
+    adhd: false,
+    tunarungu: false,
+    tunanetra: false,
+    disleksia: false
+  });
+  const [blockchainLogs, setBlockchainLogs] = useState([
+    { timestamp: '10:04', text: 'Wallet 0x9e8a...3fc1 initialized' },
+    { timestamp: '10:15', text: 'Minted Soulbound Token #384: Reguler Badge' }
+  ]);
+  const [activeBadgeToMint, setActiveBadgeToMint] = useState(null);
+  const [mintingStatusText, setMintingStatusText] = useState('');
+  const [isMintingModalOpen, setIsMintingModalOpen] = useState(false);
+
+  // --- Chatbot floating state ---
+  const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState([
-    { sender: 'ai', text: 'Halo! Saya adalah AI Advisor SatuArah. Tanyakan apa saja seputar tips belajar inklusif atau klik tombol pintasan di bawah untuk melihat tips mengedukasi anak disleksia!' }
+    { sender: 'ai', text: 'Halo! Saya adalah AI Advisor SatuArah. Tanyakan apa saja seputar tips belajar adaptif, kurikulum inklusif, atau cara menangani anak berkebutuhan khusus.' }
   ]);
-  const [isTyping, setIsTyping] = useState(false);
+  const [chatbotTyping, setChatbotTyping] = useState(false);
 
-  // Webcam & Audio Stream Refs
-  const webcamVideoRef = useRef(null);
-  const webcamCanvasRef = useRef(null);
-  const audioCanvasRef = useRef(null);
-  
-  // Stream states to close them on unmount / mode switch
-  const [webcamStream, setWebcamStream] = useState(null);
-  const [micStream, setMicStream] = useState(null);
-  const [isWebcamActive, setIsWebcamActive] = useState(false);
-  const [isMicActive, setIsMicActive] = useState(false);
-  
-  // Real Hand Detection State (Computer Vision Results)
-  const [isHandDetectedReal, setIsHandDetectedReal] = useState(false);
-
-  // Audio Context Ref
-  const audioCtxRef = useRef(null);
-  const analyserRef = useRef(null);
-
-  // Animation Frame IDs
-  const webcamAnimationRef = useRef(null);
-  const audioAnimationRef = useRef(null);
-
-  // Active MediaPipe instances
-  const activeCameraRef = useRef(null);
-  const activeHandsModelRef = useRef(null);
-
-  // Reading Ruler States (Dyslexia)
-  const [rulerActive, setRulerActive] = useState(false);
-  const [rulerTop, setRulerTop] = useState(0);
-
-  // ADHD Game States
-  const [rocketProgress, setRocketProgress] = useState(0);
-
-  // Speech Narration State
-  const [isNarrating, setIsNarrating] = useState(false);
-
-  // Blockchain Minting Modal States
-  const [mintingModalOpen, setMintingModalOpen] = useState(false);
-  const [mintingLogs, setMintingLogs] = useState([]);
-  const [mintingComplete, setMintingComplete] = useState(false);
-  const [activeBadgeToMint, setActiveBadgeToMint] = useState('');
-  const [currentTxHash, setCurrentTxHash] = useState('');
-  const [blockchainHistory, setBlockchainHistory] = useState([]);
-  const [ledgerModalOpen, setLedgerModalOpen] = useState(false);
-
-  // Sidebar Log History
-  const [sidebarLogs, setSidebarLogs] = useState([
-    { time: '23:41', text: '[System] Node Init' },
-    { time: '23:41', text: '[SBT Passport] Wallet: 0x8458...be4b' }
-  ]);
-
-  // Refs for tracking active timeouts and intervals to prevent state-leak race conditions
-  const signTimeoutRef = useRef(null);
-  const voiceTimeoutRef1 = useRef(null);
-  const voiceTimeoutRef2 = useRef(null);
-  const mintingIntervalRef = useRef(null);
-  const utteranceRef = useRef(null);
-  const speakTimeoutRef = useRef(null);
-
-  // Mode Reference to prevent stale closures in async timeout speech synthese
-  const modeRef = useRef(currentMode);
-
-  // Sync mode reference on change
-  useEffect(() => {
-    modeRef.current = currentMode;
-  }, [currentMode]);
-
-  // Update Clock
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      const hours = String(now.getHours()).padStart(2, '0');
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      setLiveTime(`${hours}:${minutes} WIB`);
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 60000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Auto-scroll chat box when new messages arrive
-  useEffect(() => {
-    const chatContainer = document.getElementById('chat-messages-container');
-    if (chatContainer) {
-      chatContainer.scrollTop = chatContainer.scrollHeight;
-    }
-  }, [chatMessages, isTyping, isChatpageActive]);
-
-  // Helper to clear all scheduled animations and timeouts
-  const clearAllTimeoutsAndIntervals = () => {
-    if (signTimeoutRef.current) clearTimeout(signTimeoutRef.current);
-    if (voiceTimeoutRef1.current) clearTimeout(voiceTimeoutRef1.current);
-    if (voiceTimeoutRef2.current) clearTimeout(voiceTimeoutRef2.current);
-    if (mintingIntervalRef.current) clearInterval(mintingIntervalRef.current);
-    if (speakTimeoutRef.current) clearTimeout(speakTimeoutRef.current);
-  };
-
-  // Update body tag classes to reflect mode adaptation dynamically
-  useEffect(() => {
-    // If chatbot page is active, do not apply accessibility background colors
-    if (isChatpageActive) {
-      document.body.className = "bg-indigo-50/50 text-slate-800 min-h-screen flex flex-col antialiased";
-      stopWebcamStream();
-      stopMicStream();
-      if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
-      }
-      return;
-    }
-
-    // Reset body classes
-    document.body.className = "bg-indigo-50/50 text-slate-800 min-h-screen flex flex-col antialiased";
-    
-    // Explicitly cancel any speaking immediately
-    if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
-    }
-
-    if (currentMode === 'blind') {
-      document.body.classList.add('mode-blind');
-    } else if (currentMode === 'adhd') {
-      document.body.classList.add('mode-adhd');
-    } else if (currentMode === 'dyslexia') {
-      document.body.classList.add('mode-dyslexia');
-    }
-
-    // Clean up media streams and speech synthesizer
-    stopWebcamStream();
-    stopMicStream();
-
-    // Trigger Speech synthesis welcome message if blind mode
-    if (currentMode === 'blind') {
-      speakText("Mode Tunanetra aktif. Modul suara dan perintah suara dinyalakan. Klik tombol kuning di tengah untuk memutar penjelasan materi, atau tekan tombol mik di bawah untuk mengucapkan jawaban.", 'blind');
-      startMicFeed();
-    } else if (currentMode === 'deaf') {
-      startWebcamFeed();
-    }
-
-    // Reset ADHD rocket progress
-    if (currentMode === 'adhd') {
-      setRocketProgress(0);
-    }
-
-    // Cleanup when mode transitions
-    return () => {
-      if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
-      }
-      clearAllTimeoutsAndIntervals();
-    };
-  }, [currentMode, isChatpageActive]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      stopWebcamStream();
-      stopMicStream();
-      clearAllTimeoutsAndIntervals();
-      if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
-      }
-    };
-  }, []);
-
-  // Handle Mousemove for Dyslexia Reading Ruler
-  useEffect(() => {
-    const handleMouseMove = (e) => {
-      if (rulerActive) {
-        setRulerTop(e.clientY - 22);
-      }
-    };
-    if (rulerActive) {
-      window.addEventListener('mousemove', handleMouseMove);
-    } else {
-      window.removeEventListener('mousemove', handleMouseMove);
-    }
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, [rulerActive]);
-
-  // -------------------------------------------------------------
-  // ACCESSIBILITY LOGIC: Webcam & Microphone (Real MediaPipe)
-  // -------------------------------------------------------------
-
-  const startWebcamFeed = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 } });
-      setWebcamStream(stream);
-      setIsWebcamActive(true);
-      
-      if (webcamVideoRef.current) {
-        webcamVideoRef.current.srcObject = stream;
-        webcamVideoRef.current.play();
-      }
-
-      // Check if MediaPipe scripts loaded in index.html
-      const hasMediaPipe = typeof window.Hands !== 'undefined' && typeof window.Camera !== 'undefined';
-      
-      if (hasMediaPipe) {
-        const hands = new window.Hands({
-          locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-        });
-
-        hands.setOptions({
-          maxNumHands: 2,
-          modelComplexity: 1,
-          minDetectionConfidence: 0.5,
-          minTrackingConfidence: 0.5
-        });
-
-        hands.onResults((results) => {
-          drawHandsLandmarks(results);
-        });
-
-        activeHandsModelRef.current = hands;
-
-        const camera = new window.Camera(webcamVideoRef.current, {
-          onFrame: async () => {
-            if (webcamVideoRef.current && activeHandsModelRef.current) {
-              await activeHandsModelRef.current.send({ image: webcamVideoRef.current });
-            }
-          },
-          width: 320,
-          height: 240
-        });
-        
-        camera.start();
-        activeCameraRef.current = camera;
-      } else {
-        console.log("MediaPipe scripts not found, falling back to simulated hand skeleton");
-        requestAnimationFrame(drawWebcamSkeletonSimulation);
-      }
-    } catch (err) {
-      console.log("Webcam access denied or unavailable. Fallback to simulated hand skeleton.");
-      setIsWebcamActive(false);
-      requestAnimationFrame(drawWebcamSkeletonSimulation); // Run simulated joints
-    }
-  };
-
-  // Draw real MediaPipe hands landmarks on the canvas
-  const drawHandsLandmarks = (results) => {
-    const canvas = webcamCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const width = canvas.width;
-    const height = canvas.height;
-    
-    ctx.clearRect(0, 0, width, height);
-    
-    // Draw simulated YOLO-style face box overlay
-    ctx.strokeStyle = '#3B82F6';
-    ctx.lineWidth = 2.5;
-    ctx.strokeRect(width / 2 - 50, height / 2 - 100, 100, 90);
-    ctx.fillStyle = '#3B82F6';
-    ctx.font = 'bold 9px Poppins';
-    ctx.fillText("AI: WAJAH (99%)", width / 2 - 50, height / 2 - 105);
-
-    // If hands are detected by MediaPipe
-    if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-      setIsHandDetectedReal(true);
-      
-      results.multiHandLandmarks.forEach((landmarks, index) => {
-        ctx.strokeStyle = '#10B981'; // AI Emerald Green lines
-        ctx.lineWidth = 3;
-        
-        // Helper connection drawer
-        const drawLine = (p1, p2) => {
-          ctx.beginPath();
-          ctx.moveTo(landmarks[p1].x * width, landmarks[p1].y * height);
-          ctx.lineTo(landmarks[p2].x * width, landmarks[p2].y * height);
-          ctx.stroke();
-        };
-
-        // Wrist to fingers connection maps
-        drawLine(0, 1); drawLine(1, 2); drawLine(2, 3); drawLine(3, 4);
-        drawLine(0, 5); drawLine(5, 6); drawLine(6, 7); drawLine(7, 8);
-        drawLine(9, 10); drawLine(10, 11); drawLine(11, 12);
-        drawLine(5, 9);
-        drawLine(13, 14); drawLine(14, 15); drawLine(15, 16);
-        drawLine(9, 13);
-        drawLine(0, 17); drawLine(17, 18); drawLine(18, 19); drawLine(19, 20);
-        drawLine(13, 17);
-
-        // Draw glowing circles on key joints
-        ctx.fillStyle = '#34D399';
-        landmarks.forEach((landmark) => {
-          ctx.beginPath();
-          ctx.arc(landmark.x * width, landmark.y * height, 4.5, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.strokeStyle = '#FFFFFF';
-          ctx.lineWidth = 1;
-          ctx.stroke();
-        });
-
-        // AI confidence tag on hand
-        ctx.fillStyle = '#10B981';
-        ctx.font = 'bold 8px Poppins';
-        ctx.fillText(`AI: TANGAN TERDETEKSI (97%)`, landmarks[0].x * width - 15, landmarks[0].y * height + 15);
-      });
-    } else {
-      setIsHandDetectedReal(false);
-    }
-  };
-
-  // Fallback visual drawer (Simulated skeleton hand bouncing on canvas)
-  const drawWebcamSkeletonSimulation = () => {
-    const canvas = webcamCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const width = canvas.width;
-    const height = canvas.height;
-    ctx.clearRect(0, 0, width, height);
-
-    const time = Date.now() * 0.003;
-    const centerX = width / 2 + Math.sin(time) * 35;
-    const centerY = height / 2 + Math.cos(time * 1.4) * 20;
-
-    // Toggle hand detection simulated state
-    setIsHandDetectedReal(true);
-
-    ctx.strokeStyle = '#10B981'; // Green tracking line
-    ctx.fillStyle = '#34D399';
-    ctx.lineWidth = 3;
-
-    const wrist = { x: centerX, y: centerY + 65 };
-    const knuckles = [
-      { x: centerX - 45, y: centerY + 5 },
-      { x: centerX - 20, y: centerY - 10 },
-      { x: centerX + 5, y: centerY - 15 },
-      { x: centerX + 30, y: centerY - 10 },
-      { x: centerX + 55, y: centerY + 5 }
-    ];
-
-    knuckles.forEach(k => {
-      ctx.beginPath();
-      ctx.moveTo(wrist.x, wrist.y);
-      ctx.lineTo(k.x, k.y);
-      ctx.stroke();
-    });
-
-    knuckles.forEach((k, i) => {
-      ctx.beginPath();
-      ctx.moveTo(k.x, k.y);
-      const tipY = k.y - 35 - Math.sin(time + i * 0.8) * 12;
-      const tipX = k.x + Math.cos(time + i * 0.5) * 6;
-      ctx.lineTo(tipX, tipY);
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.arc(k.x, k.y, 5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(tipX, tipY, 5, 0, Math.PI * 2);
-      ctx.fill();
-    });
-
-    ctx.strokeStyle = '#3B82F6';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(width / 2 - 60, centerY - 110, 120, 100);
-
-    ctx.fillStyle = '#3B82F6';
-    ctx.font = 'bold 9px Poppins';
-    ctx.fillText("AI: WAJAH (98%)", width / 2 - 60, centerY - 115);
-    ctx.fillStyle = '#10B981';
-    ctx.fillText("AI: GESTURE TRACKING (97%) (SIMULATED)", centerX - 45, centerY + 85);
-
-    webcamAnimationRef.current = requestAnimationFrame(drawWebcamSkeletonSimulation);
-  };
-
-  const stopWebcamStream = () => {
-    if (activeCameraRef.current) {
-      activeCameraRef.current.stop();
-      activeCameraRef.current = null;
-    }
-    if (activeHandsModelRef.current) {
-      activeHandsModelRef.current.close();
-      activeHandsModelRef.current = null;
-    }
-    if (webcamStream) {
-      webcamStream.getTracks().forEach(track => track.stop());
-      setWebcamStream(null);
-    }
-    setIsWebcamActive(false);
-    setIsHandDetectedReal(false);
-    if (webcamAnimationRef.current) {
-      cancelAnimationFrame(webcamAnimationRef.current);
-    }
-  };
-
-  const startMicFeed = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      setMicStream(stream);
-      setIsMicActive(true);
-
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      const audioCtx = new AudioContextClass();
-      audioCtxRef.current = audioCtx;
-      
-      const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 64;
-      analyserRef.current = analyser;
-
-      const source = audioCtx.createMediaStreamSource(stream);
-      source.connect(analyser);
-
-      requestAnimationFrame(drawAudioWaveform);
-    } catch (err) {
-      console.log("Mic access denied or unavailable. Running simulated sound wave.");
-      setIsMicActive(false);
-      requestAnimationFrame(drawAudioWaveform); // Run fake wave
-    }
-  };
-
-  const stopMicStream = () => {
-    if (micStream) {
-      micStream.getTracks().forEach(track => track.stop());
-      setMicStream(null);
-    }
-    setIsMicActive(false);
-    if (audioAnimationRef.current) {
-      cancelAnimationFrame(audioAnimationRef.current);
-    }
-    if (audioCtxRef.current) {
-      audioCtxRef.current.close();
-      audioCtxRef.current = null;
-    }
-  };
-
-  const drawAudioWaveform = () => {
-    const canvas = audioCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const width = canvas.width;
-    const height = canvas.height;
-    ctx.clearRect(0, 0, width, height);
-
-    let dataArray = null;
-    if (analyserRef.current) {
-      const bufferLength = analyserRef.current.frequencyBinCount;
-      dataArray = new Uint8Array(bufferLength);
-    }
-
-    const time = Date.now() * 0.005;
-    ctx.lineWidth = 4;
-
-    // Draw layers of waving paths
-    for (let w = 0; w < 3; w++) {
-      ctx.strokeStyle = w === 0 ? 'rgba(255, 255, 0, 0.9)' : w === 1 ? 'rgba(255, 255, 0, 0.5)' : 'rgba(255, 255, 0, 0.25)';
-      ctx.beginPath();
-
-      for (let x = 0; x < width; x++) {
-        let amplitude = 25 + Math.sin(time * 0.5) * 12;
-
-        let voiceBoost = 1;
-        if (analyserRef.current && dataArray) {
-          analyserRef.current.getByteFrequencyData(dataArray);
-          let sum = 0;
-          for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
-          voiceBoost = 1 + (sum / dataArray.length) * 0.15; // Reactive amplitude based on audio volume
-        }
-
-        const y = height / 2 + Math.sin(x * 0.025 + time + w) * amplitude * Math.sin(x / width * Math.PI) * voiceBoost;
-        if (x === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-    }
-
-    audioAnimationRef.current = requestAnimationFrame(drawAudioWaveform);
-  };
-
-  // Narrate text to speech using Web Speech API with structural guards
-  const speakText = (text, allowedMode) => {
-    // Guard: Prevent speech if the current active mode doesn't match the permitted layout
-    if (allowedMode && modeRef.current !== allowedMode) {
-      if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
-      }
-      return;
-    }
-
+  // Speech Synthesizer reference
+  const speakText = useCallback((text, forceMode = false) => {
     if ('speechSynthesis' in window) {
-      // Only cancel if speaking to avoid thread lockups
-      if (window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
-      }
-
-      if (speakTimeoutRef.current) clearTimeout(speakTimeoutRef.current);
-
-      // Delay speaking by 50ms to allow cancel to complete and prevent locks
-      speakTimeoutRef.current = setTimeout(() => {
-        // Double check mode after timeout
-        if (allowedMode && modeRef.current !== allowedMode) return;
-
+      window.speechSynthesis.cancel(); // Stop any ongoing speech
+      
+      // Use setTimeout to bypass Chrome's synchronous cancel-speak bug
+      setTimeout(() => {
         const utterance = new SpeechSynthesisUtterance(text);
-        utteranceRef.current = utterance; // Keep persistent ref to prevent GC
-
         utterance.lang = 'id-ID';
-        utterance.rate = 1.0;
-        utterance.pitch = 1.0;
         
+        // Look for Indonesian voice specifically
         const voices = window.speechSynthesis.getVoices();
-        const idVoice = voices.find(v => v.lang.includes('id') || v.name.toLowerCase().includes('indonesian'));
+        const idVoice = voices.find(v => v.lang.includes('id-ID') || v.name.toLowerCase().includes('indonesian'));
         if (idVoice) utterance.voice = idVoice;
 
-        utterance.onstart = () => setIsNarrating(true);
-        utterance.onend = () => {
-          setIsNarrating(false);
-          utteranceRef.current = null;
-        };
-        utterance.onerror = (e) => {
-          console.error("SpeechSynthesis error:", e);
-          setIsNarrating(false);
-          utteranceRef.current = null;
-        };
-
-        window.speechSynthesis.speak(utterance);
-      }, 50);
-    }
-  };
-
-  // -------------------------------------------------------------
-  // DYSLEXIA TEXT HIGHLIGHTING RULER
-  // -------------------------------------------------------------
-  const toggleReadingRuler = () => {
-    setRulerActive(!rulerActive);
-  };
-
-  // -------------------------------------------------------------
-  // ADHD TARGET GAMEPLAY MECHANICS
-  // -------------------------------------------------------------
-  const handleShootAsteroid = (isCorrect) => {
-    if (isCorrect) {
-      const nextProgress = Math.min(100, rocketProgress + 34);
-      setRocketProgress(nextProgress);
-      
-      if (nextProgress >= 100) {
-        setTimeout(() => {
-          // Double check that we are still in ADHD mode before triggering
-          if (modeRef.current === 'adhd') {
-            triggerMintingModal('adhd');
+        utterance.onstart = () => {
+          if (selectedMode === 'tunanetra' || forceMode) {
+            setIsTunanetraNarrating(true);
           }
-        }, 500);
+        };
+        utterance.onend = () => {
+          setIsTunanetraNarrating(false);
+        };
+        utterance.onerror = () => {
+          setIsTunanetraNarrating(false);
+        };
+        window.speechSynthesis.speak(utterance);
+      }, 60);
+    }
+  }, [selectedMode]);
+
+  // Stop Speech
+  const stopSpeaking = useCallback(() => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      setIsTunanetraNarrating(false);
+    }
+  }, []);
+
+  // Blockchain Badge Minting Trigger
+  const triggerBadgeMinting = useCallback((modeKey) => {
+    if (unlockedBadges[modeKey]) return; // already unlocked
+    setActiveBadgeToMint(modeKey);
+    setMintingStatusText('Menghubungkan ke Node Kepercayaan...');
+    setIsMintingModalOpen(true);
+  }, [unlockedBadges]);
+
+  // Effect to manage body class adaptations for accessibility modes
+  useEffect(() => {
+    document.body.className = ''; // clear
+    if (!isLoggedIn) return;
+
+    if (selectedMode === 'tunanetra') {
+      document.body.classList.add('mode-blind');
+    } else if (selectedMode === 'adhd') {
+      document.body.classList.add('mode-adhd');
+    } else if (selectedMode === 'disleksia') {
+      document.body.classList.add('mode-dyslexia');
+    }
+    
+    // Cleanup
+    return () => {
+      stopSpeaking();
+    };
+  }, [selectedMode, isLoggedIn, stopSpeaking]);
+
+  // Start / stop simulated audio player karaoke
+  useEffect(() => {
+    if (karaokePlaying) {
+      setKaraokeLyricIndex(0);
+      let count = 0;
+      karaokeIntervalRef.current = setInterval(() => {
+        count += 1;
+        const matchingIndex = REGULER_LYRICS.findIndex(lyric => count >= lyric.time && (lyric.time === 11 || count < REGULER_LYRICS[REGULER_LYRICS.indexOf(lyric) + 1].time));
+        if (matchingIndex !== -1) {
+          setKaraokeLyricIndex(matchingIndex);
+        }
+        if (count >= 15) {
+          clearInterval(karaokeIntervalRef.current);
+          setKaraokePlaying(false);
+          setKaraokeLyricIndex(-1);
+          confetti();
+        }
+      }, 1000);
+      // Play TTS voice of the lyrics
+      speakText("Ayo kita kawan mengenal si Mars. Planet nomor empat, merah warnanya. Mengorbit Matahari bersama Bumi. Kaya besi oksida, itu tanahnya!");
+    } else {
+      clearInterval(karaokeIntervalRef.current);
+      setKaraokeLyricIndex(-1);
+      stopSpeaking();
+    }
+    return () => clearInterval(karaokeIntervalRef.current);
+  }, [karaokePlaying, speakText, stopSpeaking]);
+
+  // Speech Recognition fallback
+  // Real Speech Recognition with Graceful Fallback (Mode Tunanetra Quiz)
+  const startTunanetraMic = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      try {
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'id-ID';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+
+        setMicListeningSimulated(true);
+        setTunanetraAnswerResult('Mendengarkan suara Anda...');
+        speakText("Silakan ucapkan jawaban Anda sekarang.", true);
+        playTone(440, 'sine', 0.15);
+
+        recognition.onresult = (event) => {
+          const speechResult = event.results[0][0].transcript.toLowerCase();
+          console.log("Speech recognized:", speechResult);
+          
+          const correctAnswer = tunanetraStoryIndex === 0 ? "merah" : "olympus mons";
+          const alternativeAnswer = tunanetraStoryIndex === 0 ? "mars" : "olympus";
+          
+          const isCorrect = speechResult.includes(correctAnswer) || speechResult.includes(alternativeAnswer);
+          
+          setMicListeningSimulated(false);
+          if (isCorrect) {
+            setTunanetraAnswerResult(`Terdeteksi: "${event.results[0][0].transcript}" ✓`);
+            playTone(523.25, 'sine', 0.15);
+            setTimeout(() => playTone(659.25, 'sine', 0.25), 150);
+            speakText(`Hebat! Jawabanmu benar. Jawabanmu adalah ${event.results[0][0].transcript}. Kamu mendapatkan 1 Token Soulbound!`, true);
+            confetti();
+            triggerBadgeMinting('tunanetra');
+          } else {
+            setTunanetraAnswerResult(`Terdeteksi: "${event.results[0][0].transcript}" (Kurang Tepat)`);
+            playTone(180, 'sawtooth', 0.25);
+            speakText(`Jawaban terdeteksi: "${event.results[0][0].transcript}". Jawaban kurang tepat, coba ucapkan ${correctAnswer === "merah" ? "Merah" : "Olympus Mons"} ya.`, true);
+          }
+        };
+
+        recognition.onerror = (e) => {
+          console.warn("Speech recognition error:", e);
+          runTunanetraMicFallback();
+        };
+
+        recognition.onend = () => {
+          setMicListeningSimulated(false);
+        };
+
+        recognition.start();
+      } catch (err) {
+        console.warn("Failed speech recognition init, using fallback:", err);
+        runTunanetraMicFallback();
       }
     } else {
-      alert("Asteroid salah! Target meleset, coba lagi.");
+      runTunanetraMicFallback();
     }
   };
 
-  // -------------------------------------------------------------
-  // BLOCKCHAIN SBT MINTING SYSTEMS
-  // -------------------------------------------------------------
-  const triggerMintingModal = (badgeKey) => {
-    // Generate random mock transaction hash
-    const generatedHash = '0x' + Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
-    setCurrentTxHash(generatedHash);
-    setActiveBadgeToMint(badgeKey);
-    setMintingComplete(false);
-    setMintingLogs([]);
-    setMintingModalOpen(true);
+  const runTunanetraMicFallback = () => {
+    setMicListeningSimulated(true);
+    setTunanetraAnswerResult('Mendengarkan (Simulasi)...');
+    playTone(440, 'sine', 0.15);
+    
+    setTimeout(() => {
+      setMicListeningSimulated(false);
+      const correctAnswer = tunanetraStoryIndex === 0 ? "Merah" : "Olympus Mons";
+      setTunanetraAnswerResult(`Jawaban Anda terdeteksi: "${correctAnswer}" ✓`);
+      playTone(523.25, 'sine', 0.15);
+      setTimeout(() => playTone(659.25, 'sine', 0.25), 150);
+      speakText(`Hebat! Jawabanmu benar. Jawabanmu adalah ${correctAnswer}. Kamu mendapatkan 1 Token Soulbound!`, true);
+      confetti();
+      triggerBadgeMinting('tunanetra');
+    }, 2500);
+  };
 
-    const logs = [
-      `> [System] Membuka saluran aman ke Inclusion Trust Node...`,
-      `> [System] Wallet Terdeteksi: 0x8458ee3fd78a4d91b0d9c25e5beb4bbe`,
-      `> [Ledger] Mengevaluasi metadata kompetensi siswa...`,
-      `> [AI Oracle] Status: Bukti Belajar Valid (Suku Materi: Tata Surya, Mode: ${badgeKey.toUpperCase()})`,
-      `> [Contract] Memanggil Smart Contract: SatuArahSBT.sol ...`,
-      `> [Network] Menyiapkan gas fee (L2 Subsidized - Free for Education)...`,
-      `> [Ledger] Memancarkan blok transaksi ke 12 validator...`,
-      `> [Network] Transaksi terkonfirmasi pada Block #${Math.floor(Math.random() * 10000000 + 4000000)}!`,
-      `> [Contract] Minting Soulbound Token ID: sbt_${badgeKey}_${Math.floor(Math.random() * 9000 + 1000)} sukses!`,
-      `> [System] Transaksi Hash: ${generatedHash}`,
-      `> [System] SBT berhasil diamankan secara permanen.`
+  // ADHD Hand-Tracking Camera Setup + Pinch Detection via MediaPipe Hands
+  const startAdhdCamera = useCallback(async () => {
+    try {
+      setAdhdCamError('');
+      
+      const HandsClass = window.Hands;
+      const CameraClass = window.Camera;
+      
+      if (!HandsClass || !CameraClass) {
+        setAdhdCamError('Modul deteksi gestur MediaPipe tidak terdeteksi di window. Hubungkan internet.');
+        return;
+      }
+
+      const video = adhdVideoRef.current;
+      if (!video) {
+        setAdhdCamError('Elemen video kamera belum terpasang di layar.');
+        return;
+      }
+
+      // Setup MediaPipe Hands to track up to 2 hands (Dual-Hand)
+      const hands = new HandsClass({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+      });
+
+      hands.setOptions({
+        maxNumHands: 2,
+        modelComplexity: 0, // Lower complexity for better performance
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+      });
+
+      hands.onResults((results) => {
+        const overlayCanvas = adhdOverlayCanvasRef.current;
+        if (!overlayCanvas) return;
+        const ctx = overlayCanvas.getContext('2d');
+        ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+        // Draw webcam image directly to output canvas (like in index.html)
+        ctx.drawImage(results.image, 0, 0, overlayCanvas.width, overlayCanvas.height);
+
+        // Reset active state for ref handStates
+        gameStateRef.current.handStates.forEach(h => {
+          h.active = false;
+        });
+
+        if (results.multiHandLandmarks) {
+          results.multiHandLandmarks.forEach((landmarks, index) => {
+            if (index >= 2) return;
+            
+            const thumbTip = landmarks[4];
+            const indexTip = landmarks[8];
+            const dist = Math.sqrt(Math.pow(indexTip.x - thumbTip.x, 2) + Math.pow(indexTip.y - thumbTip.y, 2));
+            const isPinching = dist < 0.055;
+
+            const handCenterX = 1 - ((thumbTip.x + indexTip.x) / 2);
+            const handCenterY = (thumbTip.y + indexTip.y) / 2;
+
+            const hState = gameStateRef.current.handStates[index];
+            hState.active = true;
+            hState.x = handCenterX;
+            hState.y = handCenterY;
+            hState.pinching = isPinching;
+
+            const w = overlayCanvas.width;
+            const hCanvas = overlayCanvas.height;
+            const drawColor = hState.color;
+
+            // Draw skeleton lines (un-flipped in JS, CSS transform scaleX(-1) mirrors it)
+            const connections = [
+              [0,1],[1,2],[2,3],[3,4],
+              [0,5],[5,6],[6,7],[7,8],
+              [0,9],[9,10],[10,11],[11,12],
+              [0,13],[13,14],[14,15],[15,16],
+              [0,17],[17,18],[18,19],[19,20],
+              [5,9],[9,13],[13,17]
+            ];
+            ctx.strokeStyle = drawColor;
+            ctx.lineWidth = 1.5;
+            connections.forEach(([a, b]) => {
+              ctx.beginPath();
+              ctx.moveTo(landmarks[a].x * w, landmarks[a].y * hCanvas);
+              ctx.lineTo(landmarks[b].x * w, landmarks[b].y * hCanvas);
+              ctx.stroke();
+            });
+
+            // Draw finger joints (un-flipped in JS)
+            ctx.fillStyle = '#ffffff';
+            landmarks.forEach((lm) => {
+              ctx.beginPath();
+              ctx.arc(lm.x * w, lm.y * hCanvas, 2.5, 0, 2 * Math.PI);
+              ctx.fill();
+            });
+          });
+        }
+      });
+
+      adhdHandsRef.current = hands;
+
+      // Start Camera (with ideal constraints for high browser compatibility)
+      const camera = new CameraClass(video, {
+        onFrame: async () => {
+          if (adhdHandsRef.current) {
+            await adhdHandsRef.current.send({ image: video });
+          }
+        },
+        width: { ideal: 640 },
+        height: { ideal: 480 },
+        facingMode: 'user'
+      });
+
+      await camera.start();
+      try {
+        await video.play();
+      } catch (playErr) {
+        console.log('Video autoplay blocked or handled', playErr);
+      }
+      
+      adhdCameraRef.current = camera;
+      setAdhdCamReady(true);
+      setAdhdGameState('start'); // Camera ready, transition to start screen
+      console.log('ADHD Camera started successfully with hand tracking!');
+    } catch (err) {
+      console.error('ADHD camera error:', err);
+      setAdhdCamError(`Gagal mengakses kamera: ${err.message || err}`);
+    }
+  }, []);
+
+  const stopAdhdCamera = useCallback(() => {
+    if (adhdCameraRef.current) {
+      try { adhdCameraRef.current.stop(); } catch(e) {}
+      adhdCameraRef.current = null;
+    }
+    if (adhdAnimRef.current) {
+      cancelAnimationFrame(adhdAnimRef.current);
+      adhdAnimRef.current = null;
+    }
+    if (adhdHandsRef.current) {
+      try { adhdHandsRef.current.close(); } catch(e) {}
+      adhdHandsRef.current = null;
+    }
+    if (adhdStreamRef.current) {
+      adhdStreamRef.current.getTracks().forEach(t => t.stop());
+      adhdStreamRef.current = null;
+    }
+    setAdhdCamReady(false);
+  }, []);
+
+  // Cleanup camera when leaving ADHD mode
+  useEffect(() => {
+    if (selectedMode !== 'adhd') {
+      stopAdhdCamera();
+    }
+  }, [selectedMode, stopAdhdCamera]);
+
+  // Sync controlMode to ref
+  useEffect(() => {
+    gameStateRef.current.controlMode = adhdControlMode;
+  }, [adhdControlMode]);
+
+  // Clean up focus sound and toast timeouts
+  useEffect(() => {
+    return () => {
+      focusNodesRef.current.forEach(node => {
+        try { node.stop(); } catch(e) {}
+        try { node.disconnect(); } catch(e) {}
+      });
+      focusNodesRef.current = [];
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    };
+  }, []);
+
+  // ADHD Start Game Helper
+  const startGame = () => {
+    setAdhdGameState('playing');
+    setAdhdScore(0);
+    setAdhdTimeLeft(60);
+  };
+
+  // ADHD Focus Hum Synthesizer
+  const toggleFocusSound = () => {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+
+      if (adhdFocusSound) {
+        focusNodesRef.current.forEach(node => {
+          try { node.stop(); } catch(e) {}
+          try { node.disconnect(); } catch(e) {}
+        });
+        focusNodesRef.current = [];
+        setAdhdFocusSound(false);
+      } else {
+        const audioCtx = new AudioContext();
+        
+        const osc1 = audioCtx.createOscillator();
+        const osc2 = audioCtx.createOscillator();
+        const lfo = audioCtx.createOscillator();
+        const filter = audioCtx.createBiquadFilter();
+        const gainNode = audioCtx.createGain();
+        const lfoGain = audioCtx.createGain();
+
+        osc1.type = 'sawtooth';
+        osc1.frequency.value = 55; // Low hum (A1)
+        
+        osc2.type = 'sine';
+        osc2.frequency.value = 110; // First harmonic (A2)
+        
+        lfo.type = 'sine';
+        lfo.frequency.value = 0.15; // Modulating frequency
+        
+        lfoGain.gain.value = 12; // Modulating filter frequency range
+        
+        filter.type = 'lowpass';
+        filter.frequency.value = 110; // Deep low pass spaceship cabin drone
+        
+        gainNode.gain.value = 0.05; // Soft focus volume
+
+        lfo.connect(lfoGain);
+        lfoGain.connect(filter.frequency);
+        
+        osc1.connect(filter);
+        osc2.connect(filter);
+        filter.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        osc1.start();
+        osc2.start();
+        lfo.start();
+
+        focusNodesRef.current = [osc1, osc2, lfo, audioCtx];
+        setAdhdFocusSound(true);
+      }
+    } catch(e) {
+      console.warn("Could not toggle focus sound:", e);
+    }
+  };
+
+  // Educational Toast Trigger
+  const showToast = (text, type) => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setAdhdToast({ text, type });
+    toastTimeoutRef.current = setTimeout(() => {
+      setAdhdToast(null);
+    }, 3200);
+  };
+
+  // Timer Effect
+  // ADHD Mode countdown timer
+  useEffect(() => {
+    let timer = null;
+    if (adhdGameState === 'playing') {
+      timer = setInterval(() => {
+        setAdhdTimeLeft(prev => {
+          const next = prev - 1;
+          gameStateRef.current.timeLeft = next;
+          if (next <= 0) {
+            clearInterval(timer);
+            gameStateRef.current.active = false;
+            setAdhdGameState('lost');
+            setAdhdFailReason('Waktu habis!');
+            playTone(150, 'sawtooth', 0.5);
+            return 0;
+          }
+          return next;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [adhdGameState]);
+
+  // Sync selectedMode and controlMode to start/stop camera
+  useEffect(() => {
+    if (selectedMode === 'adhd') {
+      if (adhdControlMode === 'camera' && !adhdCamReady) {
+        startAdhdCamera();
+      }
+    } else {
+      stopAdhdCamera();
+    }
+  }, [selectedMode, adhdControlMode, adhdCamReady, startAdhdCamera, stopAdhdCamera]);
+  useEffect(() => {
+    const currentGameState = gameStateRef.current;
+    if (adhdGameState !== 'playing') {
+      if (adhdGameLoopRef.current) {
+        cancelAnimationFrame(adhdGameLoopRef.current);
+        adhdGameLoopRef.current = null;
+      }
+      return;
+    }
+
+    const canvas = adhdGameCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    // Reset game state ref and shuffle cards
+    gameStateRef.current.active = true;
+    gameStateRef.current.score = 0;
+    gameStateRef.current.wrongFlashCardId = null;
+    gameStateRef.current.timeLeft = 60;
+    gameStateRef.current.particles = [];
+    gameStateRef.current.sortedCards = [];
+
+    // Reset hand states
+    gameStateRef.current.handStates = [
+      { active: false, x: 0.5, y: 0.5, pinching: false, heldCardId: null, color: '#3498db' },
+      { active: false, x: 0.5, y: 0.5, pinching: false, heldCardId: null, color: '#2ecc71' }
     ];
 
-    if (mintingIntervalRef.current) clearInterval(mintingIntervalRef.current);
+    const ESSENTIAL_ITEMS = [
+      { name: 'Bumi', emoji: '🌍', essential: true, factSuccess: 'Keren! Bumi adalah planet hunian kita yang kaya air dan oksigen.' },
+      { name: 'Mars', emoji: '🔴', essential: true, factSuccess: 'Hebat! Mars adalah planet merah berbatu dan dingin.' },
+      { name: 'Jupiter', emoji: '🪐', essential: true, factSuccess: 'Luar biasa! Jupiter adalah planet terbesar di Tata Surya.' },
+      { name: 'Saturnus', emoji: '🪐', essential: true, factSuccess: 'Mantap! Saturnus terkenal dengan cincin esnya yang sangat indah.' },
+      { name: 'Merkurius', emoji: '🪨', essential: true, factSuccess: 'Wah! Merkurius adalah planet terdekat dengan matahari.' },
+      { name: 'Venus', emoji: '🌟', essential: true, factSuccess: 'Benar! Venus adalah planet terpanas yang bersinar terang.' },
+      { name: 'Uranus', emoji: '🧊', essential: true, factSuccess: 'Tepat! Uranus adalah planet raksasa es yang berputar miring.' },
+      { name: 'Neptunus', emoji: '🌀', essential: true, factSuccess: 'Bagus! Neptunus adalah planet biru terjauh yang berangin kencang.' }
+    ];
 
-    let i = 0;
-    mintingIntervalRef.current = setInterval(() => {
-      if (i < logs.length) {
-        setMintingLogs(prev => [...prev, logs[i]]);
-        i++;
-      } else {
-        clearInterval(mintingIntervalRef.current);
-        setMintingComplete(true);
-      }
-    }, 250);
-  };
+    const USELESS_ITEMS = [
+      { name: 'Matahari', emoji: '☀️', essential: false, factFail: 'Gagal! Matahari adalah Bintang di pusat tata surya, bukan planet.' },
+      { name: 'Bulan', emoji: '🌕', essential: false, factFail: 'Gagal! Bulan adalah Satelit alami Bumi, bukan planet.' },
+      { name: 'Asteroid', emoji: '☄️', essential: false, factFail: 'Gagal! Asteroid adalah batuan angkasa kecil, bukan planet.' },
+      { name: 'Alien', emoji: '👽', essential: false, factFail: 'Gagal! Alien adalah makhluk luar angkasa fiksi, bukan planet.' },
+      { name: 'Komet', emoji: '🌠', essential: false, factFail: 'Gagal! Komet adalah bola salju debu, bukan planet.' },
+      { name: 'Satelit', emoji: '🛰️', essential: false, factFail: 'Gagal! Satelit adalah buatan manusia, bukan planet.' },
+      { name: 'Roket', emoji: '🚀', essential: false, factFail: 'Gagal! Roket adalah kendaraan luar angkasa, bukan planet.' },
+      { name: 'Black Hole', emoji: '🕳️', essential: false, factFail: 'Gagal! Lubang hitam menelan segalanya, bukan planet.' }
+    ];
 
-  const handleClaimSBT = () => {
-    // Trigger local confetti effect
-    confetti({
-      particleCount: 150,
-      spread: 80,
-      origin: { y: 0.6 }
-    });
-
-    // Update tokens & badge triggers
-    setWalletTokens(prev => prev + 1);
-    setUnlockedBadges(prev => ({
-      ...prev,
-      [activeBadgeToMint]: true
-    }));
-
-    // Update sidebar audits
-    const now = new Date();
-    const timestampStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-    setSidebarLogs(prev => [
-      ...prev,
-      { time: timestampStr, text: `Minted: ${activeBadgeToMint.toUpperCase()} SBT` }
-    ]);
-
-    // Push details to audit logs
-    setBlockchainHistory(prev => [
-      ...prev,
-      {
-        mode: activeBadgeToMint,
-        timestamp: now.toLocaleString(),
-        txHash: currentTxHash
-      }
-    ]);
-
-    // Close Modal
-    setMintingModalOpen(false);
-
-    // Audio congrats feedback
-    if (currentMode === 'blind') {
-      speakText("Selamat! Token kompetensi baru berhasil dicetak ke dompet digital anda.", 'blind');
-    }
-  };
-
-  // Switch selector modes
-  const handleModeChange = (mode) => {
-    if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
-    }
-    clearAllTimeoutsAndIntervals();
-    setCurrentMode(mode);
-  };
-
-  // Quick Sign Language Simulation Match
-  const [isCalibrating, setIsCalibrating] = useState(false);
-  const [calibrationSuccess, setCalibrationSuccess] = useState(false);
-
-  const startSignCalibration = () => {
-    setIsCalibrating(true);
-    setCalibrationSuccess(false);
+    // Spawn items using ratios (bx, by)
+    const spawned = [];
     
-    if (signTimeoutRef.current) clearTimeout(signTimeoutRef.current);
-    
-    signTimeoutRef.current = setTimeout(() => {
-      // Double check active mode ref before triggering modal
-      if (modeRef.current === 'deaf') {
-        setIsCalibrating(false);
-        setCalibrationSuccess(true);
-        triggerMintingModal('deaf');
-      }
-    }, 2000);
-  };
-
-  // Tunanetra voice simulator trigger
-  const [isVoiceListening, setIsVoiceListening] = useState(false);
-  const [voiceInputReceived, setVoiceInputReceived] = useState(false);
-
-  const simulateVoiceResponse = () => {
-    setIsVoiceListening(true);
-    setVoiceInputReceived(false);
-    speakText("Mendengarkan jawaban.", 'blind');
-    
-    if (voiceTimeoutRef1.current) clearTimeout(voiceTimeoutRef1.current);
-    if (voiceTimeoutRef2.current) clearTimeout(voiceTimeoutRef2.current);
-
-    voiceTimeoutRef1.current = setTimeout(() => {
-      if (modeRef.current === 'blind') {
-        setIsVoiceListening(false);
-        setVoiceInputReceived(true);
-        speakText("Suara diterima: Satu. Jawaban Anda benar.", 'blind');
+    // Function to generate safe coordinates avoiding the top-right camera area
+    const getSafeCoords = () => {
+      let bx, by;
+      let isSafe = false;
+      while (!isSafe) {
+        bx = 0.08 + Math.random() * 0.84;
+        by = 0.12 + Math.random() * 0.55; 
         
-        voiceTimeoutRef2.current = setTimeout(() => {
-          if (modeRef.current === 'blind') {
-            triggerMintingModal('blind');
-          }
-        }, 1200);
+        // Camera is at top-right. To be safe, if bx > 0.65 and by < 0.45, it's unsafe.
+        if (bx > 0.65 && by < 0.45) {
+          isSafe = false;
+        } else {
+          isSafe = true;
+        }
       }
-    }, 2000);
+      return { bx, by };
+    };
+
+    ESSENTIAL_ITEMS.forEach(it => {
+      const { bx, by } = getSafeCoords();
+      spawned.push({
+        ...it,
+        bx,
+        by,
+        id: Math.random().toString(36).substr(2, 9)
+      });
+    });
+    for (let i = 0; i < 6; i++) { // Spawn 6 random obstacles
+      const template = USELESS_ITEMS[Math.floor(Math.random() * USELESS_ITEMS.length)];
+      const { bx, by } = getSafeCoords();
+      spawned.push({
+        ...template,
+        bx,
+        by,
+        id: Math.random().toString(36).substr(2, 9)
+      });
+    }
+    gameStateRef.current.cards = spawned;
+
+    const resizeCanvas = () => {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height || rect.width * 0.75;
+    };
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    // Particle generator inside loop scope
+    const spawnParticles = (x, y, color, count = 10) => {
+      if (!gameStateRef.current.particles) gameStateRef.current.particles = [];
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 2.5 + 0.8;
+        gameStateRef.current.particles.push({
+          x: x,
+          y: y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          size: Math.random() * 2.5 + 1.5,
+          color: color,
+          alpha: 1.0,
+          life: Math.random() * 15 + 15
+        });
+      }
+    };
+
+    const showFeedback = (text, isCorrect) => {
+      setFeedbackToast({ text, type: isCorrect ? 'success' : 'error' });
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+      toastTimeoutRef.current = setTimeout(() => setFeedbackToast(null), 3000);
+    };
+
+    const loop = () => {
+      if (!gameStateRef.current.active) return;
+
+      const w = canvas.width;
+      const h = canvas.height;
+
+      // Clear with clean white background (identical to index.html)
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, w, h);
+
+      // Update Particles
+      if (gameStateRef.current.particles && gameStateRef.current.particles.length > 0) {
+        const particles = gameStateRef.current.particles;
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          p.x += p.vx;
+          p.y += p.vy;
+          p.alpha -= 0.025;
+          p.life--;
+          if (p.alpha <= 0 || p.life <= 0) {
+            particles.splice(i, 1);
+          } else {
+            ctx.save();
+            ctx.globalAlpha = p.alpha;
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
+        }
+      }
+
+      // Draw Bag Zone (identical to index.html)
+      const bagHeight = Math.min(180, h * 0.25);
+      const bagY = h - bagHeight;
+
+      ctx.fillStyle = '#f8f9fa';
+      ctx.fillRect(0, bagY, w, bagHeight);
+      
+      ctx.setLineDash([10, 10]);
+      ctx.strokeStyle = '#ced4da';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(15, bagY + 15, w - 30, bagHeight - 30);
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = '#adb5bd';
+      ctx.font = `bold ${Math.max(13, bagHeight * 0.15)}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🎒 JATUHKAN PLANET DI SINI', w / 2, bagY + bagHeight / 2);
+
+      // Responsive Item Size (identical to index.html)
+      const baseSize = Math.min(w, h);
+      const itemSize = Math.max(65, baseSize * 0.12);
+
+      // Dual Hand Grab & Drop Logic based on Pinch status
+      gameStateRef.current.handStates.forEach(hand => {
+        const isActive = hand.active || (gameStateRef.current.controlMode === 'mouse' && hand.color === '#3498db');
+        if (!isActive) return;
+
+        const isPinching = hand.pinching;
+        const wasPinching = hand.wasPinching || false;
+
+        // Grab Action
+        if (isPinching && !wasPinching && hand.heldCardId === null) {
+          for (let i = gameStateRef.current.cards.length - 1; i >= 0; i--) {
+            const card = gameStateRef.current.cards[i];
+            if (gameStateRef.current.sortedCards.includes(card.id)) continue;
+            
+            // Check if held by other hand
+            const isHeldByOther = gameStateRef.current.handStates.some(other => other.color !== hand.color && other.heldCardId === card.id);
+            if (isHeldByOther) continue;
+
+            const cx = card.bx * w;
+            const cy = card.by * h;
+            const dist = Math.sqrt(Math.pow(hand.x * w - cx, 2) + Math.pow(hand.y * h - cy, 2));
+            
+            if (dist < itemSize / 2 + 10) {
+              hand.heldCardId = card.id;
+              playTone(440, 'sine', 0.08);
+              break;
+            }
+          }
+        }
+
+        // Drag Action
+        if (isPinching && hand.heldCardId !== null) {
+          const card = gameStateRef.current.cards.find(c => c.id === hand.heldCardId);
+          if (card) {
+            card.bx = hand.x;
+            card.by = hand.y;
+          }
+        }
+
+        // Drop Action
+        if (!isPinching && wasPinching && hand.heldCardId !== null) {
+          const cardId = hand.heldCardId;
+          const card = gameStateRef.current.cards.find(c => c.id === cardId);
+          
+          if (card) {
+            const inBag = hand.y > 0.75;
+
+            if (inBag) {
+              if (!card.essential) {
+                // Game lost (instant) as in index.html
+                gameStateRef.current.active = false;
+                setAdhdGameState('lost');
+                setAdhdFailReason(card.factFail || `Gagal! ${card.name} bukan merupakan planet.`);
+                playTone(150, 'sawtooth', 0.5);
+              } else {
+                gameStateRef.current.sortedCards.push(cardId);
+                const score = gameStateRef.current.sortedCards.length;
+                gameStateRef.current.score = score;
+                setAdhdScore(score);
+
+                // Reward tone, particles and confetti
+                playTone(587.33, 'sine', 0.15);
+                spawnParticles(hand.x * w, hand.y * h, hand.color, 15);
+                confetti({ particleCount: 15, origin: { y: 0.8 } });
+
+                // Show success feedback fact
+                showFeedback(card.factSuccess, true);
+
+                if (score >= 8) { // total essential planets is 8
+                  playTone(523.25, 'sine', 0.15);
+                  setTimeout(() => playTone(659.25, 'sine', 0.15), 100);
+                  setTimeout(() => playTone(783.99, 'sine', 0.25), 200);
+                  setTimeout(() => {
+                    gameStateRef.current.active = false;
+                    setAdhdGameState('won');
+                    triggerBadgeMinting('adhd');
+                  }, 450);
+                }
+              }
+            } else {
+              // Not in bag: drop at current coords
+              card.bx = hand.x;
+              card.by = hand.y;
+            }
+          }
+          hand.heldCardId = null;
+        }
+
+        hand.wasPinching = isPinching;
+      });
+
+      // Helper to draw item (identical design to index.html)
+      const drawItem = (it, size, held = false, color = '#eee') => {
+        ctx.save();
+        if (held) {
+          ctx.shadowBlur = 20;
+          ctx.shadowColor = color;
+        }
+        
+        ctx.beginPath();
+        ctx.arc(it.bx * w, it.by * h, size / 2, 0, Math.PI * 2);
+        ctx.fillStyle = 'white';
+        ctx.fill();
+        ctx.strokeStyle = held ? color : '#eee';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        ctx.font = `${size * 0.5}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(it.emoji, it.bx * w, it.by * h - 2);
+
+        // Name underneath
+        ctx.fillStyle = '#64748b';
+        ctx.font = `bold ${size * 0.16}px Arial`;
+        ctx.fillText(it.name, it.bx * w, it.by * h + size * 0.42);
+        
+        ctx.restore();
+      };
+
+      // Draw Items
+      gameStateRef.current.cards.forEach(card => {
+        const isSorted = gameStateRef.current.sortedCards.includes(card.id);
+        const heldByHand = gameStateRef.current.handStates.find(hState => hState.heldCardId === card.id);
+        const isHeld = !!heldByHand;
+
+        if (isSorted || isHeld) return; // sorted or held handled separately
+
+        drawItem(card, itemSize, false, '#eee');
+      });
+
+      // Draw Hands and Held Items (with cursors)
+      gameStateRef.current.handStates.forEach(hand => {
+        const isActive = hand.active || (gameStateRef.current.controlMode === 'mouse' && hand.color === '#3498db');
+        if (!isActive) return;
+
+        if (hand.heldCardId !== null) {
+          const card = gameStateRef.current.cards.find(c => c.id === hand.heldCardId);
+          if (card) {
+            card.bx = hand.x;
+            card.by = hand.y;
+            drawItem(card, itemSize, true, hand.color);
+          }
+        }
+        
+        // Draw Cursor (identical to index.html)
+        ctx.save();
+        const r = hand.pinching ? 10 : 20;
+        ctx.beginPath();
+        ctx.arc(hand.x * w, hand.y * h, r, 0, Math.PI * 2);
+        ctx.fillStyle = hand.color + '33';
+        ctx.fill();
+        ctx.strokeStyle = hand.color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Inner dot
+        ctx.beginPath();
+        ctx.arc(hand.x * w, hand.y * h, 4, 0, Math.PI * 2);
+        ctx.fillStyle = hand.color;
+        ctx.fill();
+        ctx.restore();
+      });
+
+      gameStateRef.current.frameId = requestAnimationFrame(loop);
+    };
+
+    gameStateRef.current.frameId = requestAnimationFrame(loop);
+
+    return () => {
+      currentGameState.active = false;
+      window.removeEventListener('resize', resizeCanvas);
+      if (currentGameState.frameId) {
+        cancelAnimationFrame(currentGameState.frameId);
+      }
+    };
+  }, [adhdGameState, adhdCamReady, triggerBadgeMinting]);
+
+  const handleAdhdBoardMouseMove = (e) => {
+    if (gameStateRef.current.controlMode !== 'mouse' || !gameStateRef.current.active) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    
+    gameStateRef.current.handStates[0].active = true;
+    gameStateRef.current.handStates[0].x = Math.max(0, Math.min(1, x));
+    gameStateRef.current.handStates[0].y = Math.max(0, Math.min(1, y));
   };
 
-  // -------------------------------------------------------------
-  // AI ADVISOR CHATBOT SERVICES (Parents & Teachers Consultation)
-  // -------------------------------------------------------------
+  const handleAdhdBoardMouseDown = (e) => {
+    if (gameStateRef.current.controlMode !== 'mouse' || !gameStateRef.current.active) return;
+    gameStateRef.current.handStates[0].pinching = true;
+    
+    // Update position instantly on click
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    
+    gameStateRef.current.handStates[0].active = true;
+    gameStateRef.current.handStates[0].x = Math.max(0, Math.min(1, x));
+    gameStateRef.current.handStates[0].y = Math.max(0, Math.min(1, y));
+  };
 
-  const handleSendMessage = (e) => {
+  const handleAdhdBoardMouseUp = (_e) => {
+    if (gameStateRef.current.controlMode !== 'mouse' || !gameStateRef.current.active) return;
+    gameStateRef.current.handStates[0].pinching = false;
+  };
+
+  const handleAdhdBoardTouchMove = (e) => {
+    if (gameStateRef.current.controlMode !== 'mouse' || !gameStateRef.current.active) return;
+    if (e.touches.length === 0) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const touch = e.touches[0];
+    const x = (touch.clientX - rect.left) / rect.width;
+    const y = (touch.clientY - rect.top) / rect.height;
+    
+    gameStateRef.current.handStates[0].active = true;
+    gameStateRef.current.handStates[0].x = Math.max(0, Math.min(1, x));
+    gameStateRef.current.handStates[0].y = Math.max(0, Math.min(1, y));
+  };
+
+  const handleAdhdBoardTouchStart = (e) => {
+    if (gameStateRef.current.controlMode !== 'mouse' || !gameStateRef.current.active) return;
+    gameStateRef.current.handStates[0].pinching = true;
+    if (e.touches.length > 0) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const touch = e.touches[0];
+      const x = (touch.clientX - rect.left) / rect.width;
+      const y = (touch.clientY - rect.top) / rect.height;
+      
+      gameStateRef.current.handStates[0].active = true;
+      gameStateRef.current.handStates[0].x = Math.max(0, Math.min(1, x));
+      gameStateRef.current.handStates[0].y = Math.max(0, Math.min(1, y));
+    }
+  };
+
+  const handleAdhdBoardTouchEnd = (_e) => {
+    if (gameStateRef.current.controlMode !== 'mouse' || !gameStateRef.current.active) return;
+    gameStateRef.current.handStates[0].pinching = false;
+  };
+
+  // Tracing Canvas logic (Disleksia)
+  const setupTraceCanvas = () => {
+    const canvas = dyslexiaCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw guide letters "M A R S"
+    ctx.font = 'bold 50px OpenDyslexic, Poppins';
+    ctx.fillStyle = '#e2e8f0';
+    ctx.textAlign = 'center';
+    ctx.fillText('M  A  R  S', canvas.width / 2, canvas.height / 2 + 15);
+
+    // Draw outline instruction text
+    ctx.font = 'bold 10px Poppins';
+    ctx.fillStyle = '#059669';
+    ctx.fillText('IKUTI GARIS UNTUK MENULIS', canvas.width / 2, 20);
+  };
+
+  useEffect(() => {
+    if (selectedMode === 'disleksia' && disleksiaChallenge === 'trace') {
+      setTimeout(setupTraceCanvas, 100);
+    }
+  }, [selectedMode, disleksiaChallenge]);
+
+  const handleTraceMouseDown = (e) => {
+    const canvas = dyslexiaCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect();
+    
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+    const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+    if (!clientX || !clientY) return;
+
+    const x = (clientX - rect.left) * scaleX;
+    const y = (clientY - rect.top) * scaleY;
+    
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#10b981';
+    ctx.lineCap = 'round';
+    setIsDyslexiaTracing(true);
+  };
+
+  const handleTraceMouseMove = (e) => {
+    if (!isDyslexiaTracing) return;
+    const canvas = dyslexiaCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect();
+    
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+    const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+    if (!clientX || !clientY) return;
+
+    const x = (clientX - rect.left) * scaleX;
+    const y = (clientY - rect.top) * scaleY;
+    
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  };
+
+  const handleTraceMouseUp = () => {
+    setIsDyslexiaTracing(false);
+  };
+
+  const verifyDyslexiaTrace = () => {
+    setDyslexiaTraceComplete(true);
+    playTone(523.25, 'sine', 0.15);
+    setTimeout(() => playTone(659.25, 'sine', 0.25), 150);
+    confetti();
+    triggerBadgeMinting('disleksia');
+  };
+
+  // Dyslexia Reading and Speech Recognition Simulation
+  const startDyslexiaReadingMic = () => {
+    setIsReadingMicActive(true);
+    setReadingResultText('Mendengarkan suara Anda...');
+    playTone(440, 'sine', 0.15);
+    
+    // Simulate phonetic analysis of reading syllables "Sa-tu A-rah"
+    let mouthSequence = ['a', 'u', 'i', 'neutral'];
+    let idx = 0;
+    
+    // Mouth shapes animation interval
+    const mouthInterval = setInterval(() => {
+      setDyslexiaMouthShape(mouthSequence[idx]);
+      idx = (idx + 1) % mouthSequence.length;
+    }, 400);
+
+    setTimeout(() => {
+      clearInterval(mouthInterval);
+      setDyslexiaMouthShape('neutral');
+      setIsReadingMicActive(false);
+      setReadingResultText('Pengucapan terdeteksi: "Satu Arah" ✓');
+      setDyslexiaPronounceCorrect(true);
+      playTone(523.25, 'sine', 0.15);
+      setTimeout(() => playTone(659.25, 'sine', 0.25), 150);
+      speakText("Luar biasa! Pengucapan kata Satu Arah sangat tepat dan sesuai ejaan.");
+      confetti();
+    }, 2800);
+  };
+
+  const executeMinting = () => {
+    setMintingStatusText('Membuat Bukti Kompetensi Kriptografi (Proof-of-Competency)...');
+    
+    setTimeout(() => {
+      setMintingStatusText('Menyiapkan Transaksi Soulbound Token (SBT)...');
+      
+      setTimeout(() => {
+        const hash = '0x' + Math.random().toString(16).substring(2, 10) + '...' + Math.random().toString(16).substring(2, 6);
+        setMintingStatusText(`Sukses! Minting Berhasil. Hash Transaksi: ${hash}`);
+        
+        setTimeout(() => {
+          setIsMintingModalOpen(false);
+          setUnlockedBadges(prev => ({ ...prev, [activeBadgeToMint]: true }));
+          setWalletTokens(prev => prev + 1);
+          
+          const now = new Date();
+          const timestamp = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+          
+          setBlockchainLogs(prev => [
+            ...prev,
+            { timestamp, text: `Minted Soulbound Token: Lencana ${activeBadgeToMint.toUpperCase()}` }
+          ]);
+          playTone(523.25, 'sine', 0.15);
+          setTimeout(() => playTone(659.25, 'sine', 0.25), 150);
+          
+          if (selectedMode === 'tunanetra') {
+            speakText("Selamat! Lencana kompetensi baru berhasil dicetak ke dompet digital anda di blockchain.", true);
+          }
+          confetti();
+          setActiveBadgeToMint(null);
+        }, 1500);
+      }, 1500);
+    }, 1500);
+  };
+
+  // Chatbot Advisor Logic
+  const handleChatbotMessageSubmit = (e) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
 
-    const userText = chatInput;
+    const userMessage = chatInput.trim();
+    setChatMessages(prev => [...prev, { sender: 'user', text: userMessage }]);
     setChatInput('');
-    setChatMessages(prev => [...prev, { sender: 'user', text: userText }]);
-    setIsTyping(true);
+    setChatbotTyping(true);
 
-    if (voiceTimeoutRef1.current) clearTimeout(voiceTimeoutRef1.current);
-
-    voiceTimeoutRef1.current = setTimeout(() => {
-      setIsTyping(false);
-      let aiText = "Terima kasih atas pertanyaannya. Sebagai AI Advisor SatuArah, saya menyarankan pendekatan multisensori yang dipersonalisasi sesuai profil belajar anak. Apakah Anda ingin mempelajari tips khusus untuk Disleksia, ADHD, atau Autisme?";
+    setTimeout(() => {
+      setChatbotTyping(false);
+      let reply = 'Maaf, saya tidak mengerti pertanyaan tersebut. Coba tanyakan seputar tips mengajar disleksia, ADHD, tunanetra, atau lencana Soulbound Token.';
       
-      const lowerText = userText.toLowerCase();
-      if (lowerText.includes('disleksia') || lowerText.includes('baca') || lowerText.includes('eja')) {
-        aiText = "Untuk mendidik anak disleksia, disarankan menggunakan metode multisensori (belajar dengan visual, suara, dan gerakan rabaan), memakai font ramah disleksia (seperti OpenDyslexic), serta memandu baris baca kalimat menggunakan reading ruler agar tidak melompat-lompat.";
-      } else if (lowerText.includes('adhd') || lowerText.includes('fokus') || lowerText.includes('konsentrasi')) {
-        aiText = "Untuk mendidik anak ADHD, fokuslah meminimalkan distraksi visual dengan layar tenang, membagi instruksi menjadi langkah kecil bertahap, serta memberi jeda singkat (brain breaks) secara teratur untuk menjaga motivasi dopamin mereka.";
-      } else if (lowerText.includes('rungu') || lowerText.includes('tuli') || lowerText.includes('isyarat')) {
-        aiText = "Untuk anak tunarungu, optimalkan media pembelajaran visual terstruktur, gunakan peragaan bahasa isyarat BISINDO yang konsisten, dan latih motorik isyarat mereka menggunakan asisten deteksi webcam AI.";
+      const query = userMessage.toLowerCase();
+      if (query.includes('adhd') || query.includes('fokus')) {
+        reply = `Tips Mengajar ADHD:
+1. Berikan tugas kecil-kecil dengan jeda istirahat (brain breaks) setiap 15 menit.
+2. Minimalkan visual latar belakang agar anak tidak terdistraksi.
+3. Berikan penghargaan cepat (instant rewards) agar dopamin anak terjaga.`;
+      } else if (query.includes('disleksia') || query.includes('membaca') || query.includes('tulis')) {
+        reply = `Tips Mengajar Disleksia:
+1. Gunakan media multi-sensori (menggambar huruf di pasir, clay huruf).
+2. Gunakan font khusus seperti OpenDyslexic.
+3. Pasang penggaris pemandu baris (reading ruler) untuk memfokuskan baris kalimat yang sedang dibaca.`;
+      } else if (query.includes('tunanetra') || query.includes('suara')) {
+        reply = `Tips Mengajar Tunanetra:
+1. Berbasis media audio storytelling yang interaktif.
+2. Maksimalkan umpan balik taktil dan petunjuk verbal yang detail.
+3. Gunakan screen reader dan voice user interface (VUI).`;
+      } else if (query.includes('sbt') || query.includes('token') || query.includes('blockchain')) {
+        reply = 'Soulbound Token (SBT) adalah token kriptografi non-transferabel yang membuktikan pencapaian kompetensi belajar siswa secara permanen di blockchain, aman, dan tidak dapat dimanipulasi.';
+      } else if (query.includes('halo') || query.includes('siapa')) {
+        reply = 'Halo! Saya adalah AI Advisor SatuArah. Saya siap memberikan rekomendasi kurikulum dan metode belajar inklusif untuk putra-putri Anda.';
       }
 
-      setChatMessages(prev => [...prev, { sender: 'ai', text: aiText }]);
-    }, 1500);
+      setChatMessages(prev => [...prev, { sender: 'ai', text: reply }]);
+      playTone(880, 'sine', 0.12);
+    }, 1200);
   };
 
-  const triggerDyslexiaTipsChat = () => {
-    setChatMessages(prev => [...prev, { sender: 'user', text: 'Tolong berikan tips mengedukasi anak disleksia.' }]);
-    setIsTyping(true);
-
-    if (voiceTimeoutRef1.current) clearTimeout(voiceTimeoutRef1.current);
-
-    voiceTimeoutRef1.current = setTimeout(() => {
-      setIsTyping(false);
-      setChatMessages(prev => [...prev, {
-        sender: 'ai',
-        text: `Berikut adalah 5 Tips Utama Mengedukasi Anak Disleksia:\n\n1. Metode Pembelajaran Multisensori\nMenggabungkan indra penglihatan (visual), pendengaran (auditori), perabaan (taktil), dan gerakan (kinestetik). Contoh: mengeja kata sambil menulis huruf di pasir, menggunakan cetakan huruf 3D, atau merangkai huruf lilin (clay).\n\n2. Pembelajaran Phonics (Fonik) Berstruktur\nAjarkan hubungan antara bunyi (fonem) dan lambang huruf (grafem) secara sistematis dan berulang. Mulailah dari bunyi huruf tunggal sebelum merangkai suku kata menjadi kata yang lebih kompleks.\n\n3. Gunakan Buku & Font Ramah Disleksia\nPilihlah buku dengan gambar visual menarik dan menggunakan font khusus disleksia seperti OpenDyslexic atau Comic Neue. Font ini memiliki bagian bawah yang lebih tebal untuk mencegah anak melihat huruf terbalik atau berputar.\n\n4. Manfaatkan Alat Bantu Baca (Reading Ruler)\nGunakan penggaris atau strip pembatas transparan berwarna kuning untuk menutupi baris kalimat lain. Hal ini membantu memusatkan pandangan anak hanya pada satu baris teks saja agar tidak melompat-lompat.\n\n5. Berikan Apresiasi dan Dukungan Emosional\nAnak disleksia sering merasa frustrasi dan minder di sekolah. Fokuslah pada usaha keras mereka, berikan waktu tambahan untuk tugas membaca, dan bangun rasa percaya diri anak dengan mengapresiasi kelebihan mereka di bidang lain seperti seni atau olahraga.`
-      }]);
-    }, 1500);
+  const handleLoginSubmit = (e) => {
+    e.preventDefault();
+    if (username.trim()) {
+      setIsLoggedIn(true);
+    }
   };
 
-  const triggerADHDTipsChat = () => {
-    setChatMessages(prev => [...prev, { sender: 'user', text: 'Bagaimana panduan komunikasi untuk anak ADHD?' }]);
-    setIsTyping(true);
+  // Speak descriptions for blind mode on focus
+  const voiceGuide = useCallback((text) => {
+    if (selectedMode === 'tunanetra') {
+      playTone(600, 'sine', 0.08); // soft hover guide tone
+      speakText(text);
+    }
+  }, [selectedMode, speakText]);
 
-    if (voiceTimeoutRef2.current) clearTimeout(voiceTimeoutRef2.current);
+  // Memoise static UI values to prevent lint issues
+  const renderedStreakDays = useMemo(() => `${streakDays} Hari`, [streakDays]);
+  const renderedDuration = useMemo(() => `${learningDuration} Min`, [learningDuration]);
 
-    voiceTimeoutRef2.current = setTimeout(() => {
-      setIsTyping(false);
-      setChatMessages(prev => [...prev, {
-        sender: 'ai',
-        text: `Berikut adalah Panduan Komunikasi Efektif dengan Anak ADHD:\n\n1. Berikan Instruksi Pendek & Jelas\nHindari memberikan instruksi majemuk (misal: "Rapikan buku, matikan lampu, cuci kaki"). Berikan instruksi satu per satu secara terpisah.\n\n2. Lakukan Kontak Mata yang Intim\nHampiri anak, samakan tinggi tubuh Anda, lalu tatap matanya dengan lembut sebelum memberikan instruksi guna memastikan perhatian mereka terfokus.\n\n3. Gunakan Dukungan Visual (Visual Aids)\nGunakan jadwal bergambar atau daftar ceklis misi harian. Anak ADHD merespons penanda visual terstruktur jauh lebih baik daripada sekadar verbal.\n\n4. Hindari Frustrasi Berlebih & Berikan Jeda (Brain Breaks)\nBiarkan anak bergerak atau istirahat sejenak 5 menit setelah belajar selama 15-20 menit untuk menjaga stabilitas dopamin mereka.\n\n5. Berikan Umpan Balik Positif Instan\nBerikan pujian yang spesifik dan langsung begitu mereka menyelesaikan langkah kecil (misal: "Hebat sekali kamu langsung menaruh pensil di kotak").`
-      }]);
-    }, 1500);
-  };
-
-  // -------------------------------------------------------------
-  // CONDITIONAL RENDERING FOR CHATBOT PAGE (SPA Router simulation)
-  // -------------------------------------------------------------
-  if (isChatpageActive) {
-    return (
-      <div className="flex-grow flex flex-col w-full bg-slate-50 min-h-screen">
-        {/* Header Bento Card */}
-        <header className="max-w-4xl w-full mx-auto px-4 pt-6">
-          <div className="bg-white bubbly-card rounded-4xl px-4 md:px-6 py-4 flex justify-between items-center gap-4">
-            <button
-              onClick={() => setIsChatpageActive(false)}
-              className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-black py-2.5 px-5 rounded-3xl border-b-4 border-slate-300 active:border-b-2 active:translate-y-0.5 text-xs flex items-center gap-2 transition-all cursor-pointer"
-            >
-              <i className="fa-solid fa-arrow-left"></i> Kembali ke Dashboard
-            </button>
-            <div className="flex items-center space-x-2">
-              <div className="bg-indigo-600 text-white p-2 rounded-2xl animate-float">
-                <i className="fa-solid fa-robot text-base"></i>
-              </div>
-              <span className="text-xs md:text-sm font-black text-slate-800">SatuArah AI Advisor</span>
+  // --- RENDERING ---
+  return (
+    <div className="min-h-screen bg-emerald-50/40 p-0 sm:py-6 flex items-center justify-center">
+      {/* PHONE WRAPPER FOR MOBILE-FIRST FEEL */}
+      <div className="phone-container flex flex-col justify-between bubbly-card bg-white relative overflow-hidden">
+        
+        {/* APP HEADER */}
+        <header className="px-5 py-4 flex items-center justify-between border-b border-emerald-100 bg-white sticky top-0 z-30">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500 flex items-center justify-center text-white text-base shadow-sm animate-float">
+              🟢
+            </div>
+            <div>
+              <h1 className="text-sm font-black tracking-tight text-emerald-800">
+                Satu<span className="text-amber-500">Arah</span>
+              </h1>
+              <p className="text-[9px] text-emerald-600/70 font-bold uppercase tracking-wider leading-none">Inklusi EduTech</p>
             </div>
           </div>
+
+          {/* Active Mode Badge indicator */}
+          {selectedMode && (
+            <button
+              onClick={() => { setSelectedMode(null); setRegulerSubMode(null); stopSpeaking(); }}
+              className="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-full border border-emerald-200 text-[9px] font-black uppercase flex items-center gap-1.5 active:scale-95 transition-transform"
+            >
+              <i className="fa-solid fa-arrow-left text-[8px]"></i> {selectedMode}
+            </button>
+          )}
         </header>
 
-        {/* Main Chat Interface page */}
-        <main className="flex-grow max-w-4xl w-full mx-auto p-4 flex flex-col gap-6">
-          <div className="bg-white bubbly-card rounded-4xl p-4 md:p-6 flex flex-col h-[550px] relative overflow-hidden flex-grow">
-            
-            {/* Chat header */}
-            <div className="border-b border-slate-100 pb-3 mb-4 flex justify-between items-center">
-              <div>
-                <h3 className="font-extrabold text-slate-800 text-sm md:text-base">Asisten Inklusi Pintar</h3>
-                <p className="text-[10px] text-green-500 font-semibold flex items-center gap-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block animate-ping"></span>
-                  Online • Konsultan Orang Tua & Guru
-                </p>
+        {/* ============================================================== */}
+        {/* VIEW 1: SPLASH & LOGIN CONTAINER */}
+        {/* ============================================================== */}
+        {!isLoggedIn ? (
+          <div className="flex-1 flex flex-col justify-center p-6 bg-gradient-to-b from-white to-emerald-50/50">
+            <div className="text-center mb-6">
+              <div className="w-20 h-20 bg-emerald-500 rounded-3xl mx-auto flex items-center justify-center text-white text-4xl shadow-md mb-4 animate-float border-3 border-emerald-200">
+                🌍
               </div>
+              <h2 className="text-2xl font-black text-emerald-800 leading-tight">SatuArah Platform</h2>
+              <p className="text-xs text-slate-500 font-semibold mt-1 max-w-xs mx-auto">
+                Ruang belajar interaktif adaptif ramah disabilitas dan inklusi masa depan.
+              </p>
+            </div>
+
+            <form onSubmit={handleLoginSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wide">Nama Penjelajah Cilik:</label>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full bg-white border-2 border-emerald-200 focus:border-emerald-500 outline-none rounded-2xl py-3 px-4 text-xs font-bold text-slate-800 transition-all shadow-sm"
+                  placeholder="Masukkan nama..."
+                  required
+                />
+              </div>
+
+              {/* Avatar Selector */}
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-2 uppercase tracking-wide">Pilih Avatar:</label>
+                <div className="grid grid-cols-5 gap-2">
+                  {['🚀', '🦖', '🤖', '🦊', '🦁'].map((av) => (
+                    <button
+                      key={av}
+                      type="button"
+                      onClick={() => setSelectedAvatar(av)}
+                      className={`py-3 rounded-2xl text-2xl border-2 transition-all ${
+                        selectedAvatar === av
+                          ? 'border-emerald-50 scale-110 shadow-sm'
+                          : 'border-slate-200 bg-white hover:border-emerald-300'
+                      }`}
+                    >
+                      {av}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <button
-                onClick={() => setChatMessages([
-                  { sender: 'ai', text: 'Halo! Saya adalah AI Advisor SatuArah. Tanyakan apa saja seputar tips belajar inklusif atau klik tombol pintasan di bawah untuk melihat tips mengedukasi anak disleksia!' }
-                ])}
-                className="text-[9px] md:text-[10px] text-slate-400 font-bold hover:text-indigo-600 cursor-pointer"
+                type="submit"
+                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black py-4 px-6 rounded-2.5xl text-xs uppercase btn-bubbly transition-all shadow-md cursor-pointer mt-4"
               >
-                Reset Riwayat Chat
+                Mulai Belajar &rarr;
+              </button>
+            </form>
+          </div>
+        ) : (
+          /* ============================================================== */
+          /* MAIN LOGGED IN APP CONTENTS */
+          /* ============================================================== */
+          <main className="flex-1 flex flex-col overflow-y-auto bg-slate-50 relative p-4 scrollbar-none">
+            
+            {/* -------------------------------------------------------- */}
+            {/* TAB A: HOME SCREEN */}
+            {currentTab === 'home' && !selectedMode && (
+              <Home
+                username={username}
+                selectedAvatar={selectedAvatar}
+                renderedStreakDays={renderedStreakDays}
+                renderedDuration={renderedDuration}
+                walletTokens={walletTokens}
+                speakText={speakText}
+              />
+            )}
+            {/* -------------------------------------------------------- */}
+            {/* -------------------------------------------------------- */}
+            {/* TAB B: BELAJAR (LEARNING OPTIONS GRID) */}
+            {currentTab === 'belajar' && !selectedMode && (
+              <Belajar
+                setSelectedMode={setSelectedMode}
+                voiceGuide={voiceGuide}
+                speakText={speakText}
+              />
+            )}
+            {/* -------------------------------------------------------- */}
+            {/* -------------------------------------------------------- */}
+            {/* SUB-VIEW B.1: MODE REGULER */}
+            {selectedMode === 'reguler' && (
+              <RegulerMode
+                regulerSubMode={regulerSubMode}
+                setRegulerSubMode={setRegulerSubMode}
+                regulerSlide={regulerSlide}
+                setRegulerSlide={setRegulerSlide}
+                karaokePlaying={karaokePlaying}
+                setKaraokePlaying={setKaraokePlaying}
+                karaokeLyricIndex={karaokeLyricIndex}
+                triggerBadgeMinting={triggerBadgeMinting}
+              />
+            )}
+            {/* SUB-VIEW B.2: MODE ADHD */}
+            {selectedMode === 'adhd' && (
+              <ADHDMode
+                adhdScore={adhdScore}
+                adhdGameState={adhdGameState}
+                adhdCamReady={adhdCamReady}
+                adhdCamError={adhdCamError}
+                adhdControlMode={adhdControlMode}
+                setAdhdControlMode={setAdhdControlMode}
+                adhdTimeLeft={adhdTimeLeft}
+                adhdFailReason={adhdFailReason}
+                feedbackToast={feedbackToast}
+                adhdFocusSound={adhdFocusSound}
+                toggleFocusSound={toggleFocusSound}
+                stopAdhdCamera={stopAdhdCamera}
+                setSelectedMode={setSelectedMode}
+                adhdVideoRef={adhdVideoRef}
+                adhdOverlayCanvasRef={adhdOverlayCanvasRef}
+                adhdGameCanvasRef={adhdGameCanvasRef}
+                startGame={startGame}
+                handleAdhdBoardMouseMove={handleAdhdBoardMouseMove}
+                handleAdhdBoardMouseDown={handleAdhdBoardMouseDown}
+                handleAdhdBoardMouseUp={handleAdhdBoardMouseUp}
+                handleAdhdBoardTouchMove={handleAdhdBoardTouchMove}
+                handleAdhdBoardTouchStart={handleAdhdBoardTouchStart}
+                handleAdhdBoardTouchEnd={handleAdhdBoardTouchEnd}
+              />
+            )}
+            
+            {/* SUB-VIEW B.3: MODE TUNARUNGU */}
+            {selectedMode === 'tunarungu' && (
+              <TunarunguMode
+                tunarunguComicPage={tunarunguComicPage}
+                setTunarunguComicPage={setTunarunguComicPage}
+                activeSignWord={activeSignWord}
+                setActiveSignWord={setActiveSignWord}
+                playTone={playTone}
+                confetti={confetti}
+                triggerBadgeMinting={triggerBadgeMinting}
+              />
+            )}
+            
+            {/* SUB-VIEW B.4: MODE TUNANETRA */}
+            {selectedMode === 'tunanetra' && (
+              <TunanetraMode
+                isTunanetraNarrating={isTunanetraNarrating}
+                tunanetraStoryIndex={tunanetraStoryIndex}
+                setTunanetraStoryIndex={setTunanetraStoryIndex}
+                micListeningSimulated={micListeningSimulated}
+                tunanetraAnswerResult={tunanetraAnswerResult}
+                setTunanetraAnswerResult={setTunanetraAnswerResult}
+                voiceGuide={voiceGuide}
+                speakText={speakText}
+                stopSpeaking={stopSpeaking}
+                startTunanetraMic={startTunanetraMic}
+                TUNANETRA_STORIES={TUNANETRA_STORIES}
+              />
+            )}
+            
+            {/* SUB-VIEW B.5: MODE DISLEKSIA */}
+            {selectedMode === 'disleksia' && (
+              <DisleksiaMode
+                rulerActive={rulerActive}
+                setRulerActive={setRulerActive}
+                rulerTop={rulerTop}
+                setRulerTop={setRulerTop}
+                disleksiaChallenge={disleksiaChallenge}
+                setDisleksiaChallenge={setDisleksiaChallenge}
+                isDyslexiaTracing={isDyslexiaTracing}
+                dyslexiaTraceComplete={dyslexiaTraceComplete}
+                dyslexiaCanvasRef={dyslexiaCanvasRef}
+                handleTraceMouseDown={handleTraceMouseDown}
+                handleTraceMouseMove={handleTraceMouseMove}
+                handleTraceMouseUp={handleTraceMouseUp}
+                setupTraceCanvas={setupTraceCanvas}
+                verifyDyslexiaTrace={verifyDyslexiaTrace}
+                dyslexiaMouthShape={dyslexiaMouthShape}
+                isReadingMicActive={isReadingMicActive}
+                startDyslexiaReadingMic={startDyslexiaReadingMic}
+                readingResultText={readingResultText}
+                dyslexiaPronounceCorrect={dyslexiaPronounceCorrect}
+              />
+            )}
+            
+            {/* TAB C: PROFILE VIEW */}
+            {currentTab === 'profile' && !selectedMode && (
+              <Profile
+                username={username}
+                selectedAvatar={selectedAvatar}
+                setIsLoggedIn={setIsLoggedIn}
+                setSelectedMode={setSelectedMode}
+                stopSpeaking={stopSpeaking}
+                unlockedBadges={unlockedBadges}
+                blockchainLogs={blockchainLogs}
+              />
+            )}
+            </main>
+        )}
+
+        {/* ============================================================== */}
+        {/* VIEW 3: CHATBOT OVERLAY DIALOG */}
+        {/* ============================================================== */}
+        {chatOpen && isLoggedIn && (
+          <div className="absolute bottom-20 right-4 left-4 z-40 bg-white border-3 border-emerald-200 rounded-3xl shadow-xl flex flex-col h-[350px] animate-float overflow-hidden">
+            {/* Chatbot Header */}
+            <div className="bg-emerald-500 text-white px-4 py-3 flex items-center justify-between border-b border-emerald-600">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🤖</span>
+                <div>
+                  <h4 className="text-[10px] font-black leading-none">SatuArah AI Advisor</h4>
+                  <p className="text-[8px] text-emerald-100 font-semibold mt-0.5 leading-none">Inklusi & Kurikulum Spesifik</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setChatOpen(false)}
+                className="text-white hover:text-emerald-100 text-base font-black"
+              >
+                ✕
               </button>
             </div>
 
-            {/* Chat bubbles */}
-            <div
-              id="chat-messages-container"
-              className="flex-grow overflow-y-auto space-y-4 pr-1 md:pr-2 scrollbar-thin scrollbar-thumb-slate-200"
-            >
+            {/* Chat messages */}
+            <div className="flex-1 p-3 overflow-y-auto space-y-3 bg-slate-50 flex flex-col">
               {chatMessages.map((msg, index) => (
-                <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} items-end gap-2.5`}>
-                  {msg.sender === 'ai' && (
-                    <div className="bg-indigo-100 text-indigo-700 w-8 h-8 rounded-full flex items-center justify-center text-sm shadow-inner shrink-0">
-                      🤖
-                    </div>
-                  )}
-                  <div className={`p-4 rounded-3xl max-w-[80%] text-xs md:text-sm font-semibold leading-relaxed ${
+                <div 
+                  key={index}
+                  className={`max-w-[85%] rounded-2xl p-2.5 text-[9px] font-semibold leading-relaxed ${
                     msg.sender === 'user'
-                      ? 'bg-indigo-600 text-white rounded-br-none shadow-md'
-                      : 'bg-slate-50 border border-slate-200 text-slate-700 rounded-bl-none shadow-sm'
-                  }`}>
-                    {msg.text.split('\n').map((line, lIdx) => (
-                      <p key={lIdx} className={line.startsWith('-') || line.match(/^\d+\./) ? 'mt-1.5 pl-2 list-item list-inside' : 'mt-0.5'}>
-                        {line}
-                      </p>
-                    ))}
-                  </div>
-                  {msg.sender === 'user' && (
-                    <div className="bg-gradient-to-tr from-amber-400 to-indigo-500 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm shadow-md shrink-0">
-                      🧑‍🚀
-                    </div>
-                  )}
+                      ? 'bg-emerald-500 text-white self-end rounded-tr-none'
+                      : 'bg-white border border-emerald-100 text-slate-700 self-start rounded-tl-none'
+                  }`}
+                >
+                  {msg.text.split('\n').map((line, idx) => (
+                    <p key={idx} className={line.startsWith('-') || line.match(/^\d+\./) ? 'pl-2 list-item list-inside' : ''}>
+                      {line}
+                    </p>
+                  ))}
                 </div>
               ))}
-              
-              {/* Typing loader */}
-              {isTyping && (
-                <div className="flex justify-start items-end gap-2.5">
-                  <div className="bg-indigo-100 text-indigo-700 w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0">
-                    🤖
-                  </div>
-                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-3xl rounded-bl-none text-slate-400 text-xs md:text-sm font-medium flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span>
-                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.2s]"></span>
-                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.4s]"></span>
-                  </div>
+
+              {chatbotTyping && (
+                <div className="bg-white border border-emerald-100 text-slate-400 self-start rounded-2xl rounded-tl-none p-2.5 text-[9px] font-bold flex gap-1">
+                  <span className="w-1 h-1 bg-slate-400 rounded-full animate-bounce"></span>
+                  <span className="w-1 h-1 bg-slate-400 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                  <span className="w-1 h-1 bg-slate-400 rounded-full animate-bounce [animation-delay:0.4s]"></span>
                 </div>
               )}
             </div>
 
-            {/* Template Buttons Stack */}
-            <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
+            {/* Chat Preset Shortcuts */}
+            <div className="p-2 border-t border-slate-100 bg-white flex gap-1.5 overflow-x-auto whitespace-nowrap scrollbar-none">
               <button
-                onClick={triggerDyslexiaTipsChat}
-                className="bg-teal-50 hover:bg-teal-100 text-teal-700 font-extrabold py-2 px-3 rounded-full border border-teal-200 text-[10px] md:text-xs transition-all cursor-pointer flex items-center gap-1.5 shadow-sm animate-pulse-glow"
+                onClick={() => { setChatInput('Tips anak ADHD'); }}
+                className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full text-[8px] font-black inline-block"
               >
-                💡 Tips Mengedukasi Anak Disleksia
+                💡 ADHD
               </button>
               <button
-                onClick={triggerADHDTipsChat}
-                className="bg-purple-50 hover:bg-purple-100 text-purple-700 font-extrabold py-2 px-3 rounded-full border border-purple-200 text-[10px] md:text-xs transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
+                onClick={() => { setChatInput('Tips anak Disleksia'); }}
+                className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full text-[8px] font-black inline-block"
               >
-                💡 Panduan Komunikasi ADHD
+                💡 Disleksia
+              </button>
+              <button
+                onClick={() => { setChatInput('Apa itu SBT?'); }}
+                className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full text-[8px] font-black inline-block"
+              >
+                🪙 Blockchain SBT
               </button>
             </div>
 
-            {/* Input message form */}
-            <form onSubmit={handleSendMessage} className="mt-3.5 flex gap-2">
+            {/* Chat Input form */}
+            <form onSubmit={handleChatbotMessageSubmit} className="p-2 border-t border-slate-100 bg-white flex gap-2">
               <input
                 type="text"
                 value={chatInput}
-                onChange={e => setChatInput(e.target.value)}
-                placeholder="Tulis pertanyaan Anda untuk AI Advisor..."
-                className="flex-1 bg-slate-50 border-2 border-slate-200 focus:border-indigo-400 outline-none rounded-2xl py-3 px-4 text-xs md:text-sm font-semibold transition-all"
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Tulis pesan..."
+                className="flex-1 bg-slate-50 border border-slate-200 focus:border-emerald-500 outline-none rounded-xl py-2 px-3 text-[9px] font-bold text-slate-800"
               />
               <button
                 type="submit"
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-5 py-3 rounded-2xl border-b-4 border-indigo-800 active:border-b-0 active:translate-y-0.5 transition-all text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
+                className="bg-emerald-500 text-white font-black px-3.5 py-2 rounded-xl text-[9px] uppercase hover:bg-emerald-600 active:scale-95"
               >
-                Kirim <i className="fa-solid fa-paper-plane"></i>
+                Kirim
               </button>
             </form>
           </div>
-        </main>
-      </div>
-    );
-  }
+        )}
 
-  return (
-    <div className="flex-1 flex flex-col w-full">
-      {/* Reading Ruler overlay for Dyslexia */}
-      {rulerActive && currentMode === 'dyslexia' && (
-        <div
-          id="reading-ruler"
-          className="hidden md:block"
-          style={{ top: `${rulerTop}px` }}
-        />
-      )}
+        {/* FLOATING CHAT BUBBLE */}
+        {isLoggedIn && !chatOpen && (
+          <button
+            onClick={() => setChatOpen(true)}
+            className="absolute bottom-20 right-4 z-40 w-12 h-12 bg-emerald-500 hover:bg-emerald-600 text-white text-2xl rounded-full shadow-lg flex items-center justify-center border-b-3 border-emerald-700 active:translate-y-0.5 active:border-b-0 animate-bounce cursor-pointer"
+            style={{ bottom: '76px' }}
+            title="Tanya AI Advisor"
+          >
+            💬
+          </button>
+        )}
 
-      {/* Header Bento Card */}
-      <header className="max-w-7xl w-full mx-auto px-4 md:px-6 pt-6">
-        <div id="header-bento" className="bg-white bubbly-card rounded-4xl px-4 md:px-6 py-5 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center space-x-4">
-            <div className="bg-indigo-600 text-white p-3 rounded-3xl shadow-[0_6px_0_#3730A3] animate-float">
-              <i className="fa-solid fa-compass-navigation text-2xl md:text-3xl"></i>
-            </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-black tracking-tight text-indigo-600 flex items-center flex-wrap gap-1">
-                Satu<span className="text-amber-500">Arah</span>
-                <span className="text-[10px] md:text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest ml-2 border border-indigo-200">
-                  Vite React
-                </span>
-              </h1>
-              <p className="text-[10px] md:text-xs text-slate-500 font-semibold tracking-wide mt-0.5">
-                Edukasi Inklusif Dinamis Adaptif AI • Mobile & Web Friendly
+        {/* ============================================================== */}
+        {/* PERSISTENT FOOTER NAVIGATION */}
+        {/* ============================================================== */}
+        {isLoggedIn && (
+          <footer className="bg-white border-t border-emerald-100 grid grid-cols-3 py-2 sticky bottom-0 z-30">
+            {/* Tab 1: Home */}
+            <button
+              onClick={() => { setCurrentTab('home'); setSelectedMode(null); stopSpeaking(); }}
+              className={`flex flex-col items-center gap-0.5 py-1 text-slate-500 hover:text-emerald-600 transition-colors ${
+                currentTab === 'home' ? 'text-emerald-500 font-black' : 'font-bold'
+              }`}
+            >
+              <span className="text-lg">🏠</span>
+              <span className="text-[9px]">Home</span>
+            </button>
+
+            {/* Tab 2: Belajar */}
+            <button
+              onClick={() => { setCurrentTab('belajar'); }}
+              className={`flex flex-col items-center gap-0.5 py-1 text-slate-500 hover:text-emerald-600 transition-colors ${
+                currentTab === 'belajar' || selectedMode ? 'text-emerald-500 font-black' : 'font-bold'
+              }`}
+            >
+              <span className="text-lg">📖</span>
+              <span className="text-[9px]">Belajar</span>
+            </button>
+
+            {/* Tab 3: Profile */}
+            <button
+              onClick={() => { setCurrentTab('profile'); setSelectedMode(null); stopSpeaking(); }}
+              className={`flex flex-col items-center gap-0.5 py-1 text-slate-500 hover:text-emerald-600 transition-colors ${
+                currentTab === 'profile' ? 'text-emerald-500 font-black' : 'font-bold'
+              }`}
+            >
+              <span className="text-lg">👤</span>
+              <span className="text-[9px]">Profile</span>
+            </button>
+          </footer>
+        )}
+
+        {/* BLOCKCHAIN SBT MINTING MODAL OVERLAY */}
+        {isMintingModalOpen && (
+          <div className="absolute inset-0 bg-slate-950/80 z-50 flex items-center justify-center p-4">
+            <div className="bg-slate-900 border-2 border-emerald-500 text-white rounded-3xl p-5 w-full max-w-[280px] text-center space-y-4 shadow-xl">
+              <div className="text-4xl animate-spin-slow">🪙</div>
+              <h4 className="font-black text-xs text-white">Trust Ledger Minting Station</h4>
+              <p className="text-[8px] text-slate-400 leading-relaxed">
+                {mintingStatusText}
               </p>
-            </div>
-          </div>
-          
-          <div className="flex flex-wrap items-center gap-2 md:gap-3">
-            <div className="bg-emerald-50 text-emerald-700 px-3.5 py-2 rounded-full border-2 border-emerald-200 text-[10px] md:text-xs font-bold flex items-center gap-1.5">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              <i className="fa-solid fa-cubes text-emerald-500"></i>
-              <span>Trust Ledger: Connected</span>
-            </div>
-            <div className="bg-slate-100 text-slate-700 px-3.5 py-2 rounded-full border-2 border-slate-200 text-[10px] md:text-xs font-bold flex items-center gap-1.5">
-              <i className="fa-regular fa-clock text-indigo-500"></i>
-              <span>{liveTime}</span>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Grid Workspace */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
-        {/* SIDEBAR BENTO PANEL (Left 4 Columns) */}
-        <section className="lg:col-span-4 flex flex-col gap-6 w-full">
-          
-          {/* Student Profile Card */}
-          <div id="profile-card" className="bg-white bubbly-card rounded-4xl p-5 md:p-6 relative overflow-hidden">
-            <div className="absolute -right-6 -bottom-6 text-slate-100 text-9xl font-black select-none pointer-events-none opacity-20">AI</div>
-            <div className="flex items-center space-x-4 mb-4">
-              <div className="relative">
-                <div className="w-14 h-14 md:w-16 md:h-16 bg-gradient-to-tr from-amber-400 to-indigo-600 rounded-3xl flex items-center justify-center text-white text-2xl md:text-3xl shadow-lg border-2 border-white transform hover:rotate-12 transition-transform duration-300">
-                  🚀
-                </div>
-                <span className="absolute -bottom-0.5 -right-0.5 bg-green-500 border-2 border-white w-4 h-4 rounded-full" title="Online"></span>
-              </div>
-              <div>
-                <h3 className="font-extrabold text-slate-800 text-base md:text-lg leading-tight">Danendra Rasyid</h3>
-                <p className="text-[10px] md:text-xs text-indigo-600 font-bold tracking-wide">Penjelajah Kosmik • Kelas 4</p>
-              </div>
-            </div>
-            
-            <div className="bg-slate-50 border border-slate-100 rounded-3xl p-3.5 space-y-1.5 text-[11px] md:text-xs">
-              <div className="flex items-center gap-2 text-indigo-900 font-bold">
-                <i className="fa-solid fa-robot text-sm animate-pulse text-indigo-500"></i>
-                <span>AI Diagnostic Feedback:</span>
-              </div>
-              <p className="text-slate-600 font-medium leading-relaxed">
-                {currentMode === 'regular' && "Siswa memiliki konsentrasi tinggi. Merekomendasikan visual interaktif bintang dan planet."}
-                {currentMode === 'deaf' && "Mode Isyarat Aktif. Pelacakan motorik wajah dan tangan siap menangkap gerakan non-verbal."}
-                {currentMode === 'blind' && "Aksesibilitas Kontras Tinggi Murni diaktifkan. Instruksi audio siap diputar ulang."}
-                {currentMode === 'adhd' && "Pengurangan kontras cahaya aktif. Misi interaktif siap menstimulasi fokus."}
-                {currentMode === 'dyslexia' && "Skema visual krem aktif dengan spasi huruf lebar dan alat bantu penggaris garis baca."}
-              </p>
-            </div>
-          </div>
-
-          {/* Mode Selection Control Card */}
-          <div id="mode-selection-card" className="bg-white bubbly-card rounded-4xl p-5 md:p-6 flex flex-col gap-3">
-            <h2 className="text-xs md:text-sm font-extrabold text-slate-800 mb-1 flex items-center gap-2">
-              <i className="fa-solid fa-sliders text-indigo-600"></i> Pilih Mode Belajar (Adaptasi AI):
-            </h2>
-            
-            {/* REGULER BUTTON */}
-            <button
-              onClick={() => handleModeChange('regular')}
-              className={`btn-3d w-full text-left px-4 py-3 md:py-3.5 rounded-3xl font-extrabold border-2 flex items-center transition-all duration-200 ${
-                currentMode === 'regular'
-                  ? 'border-indigo-600 bg-indigo-600 text-white shadow-lg'
-                  : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-400'
-              }`}
-            >
-              <span className={`p-2 rounded-2xl mr-3.5 ${currentMode === 'regular' ? 'bg-white/20 text-white' : 'bg-indigo-50 text-indigo-500'}`}>
-                <i className="fa-solid fa-graduation-cap text-base w-5 text-center"></i>
-              </span>
-              <div>
-                <p className="text-xs md:text-sm font-black">Mode Reguler</p>
-                <p className={`text-[9px] md:text-[10px] font-medium ${currentMode === 'regular' ? 'opacity-90' : 'text-slate-500'}`}>Tampilan Clean Putih-Indigo</p>
-              </div>
-            </button>
-
-            {/* TUNARUNGU BUTTON */}
-            <button
-              onClick={() => handleModeChange('deaf')}
-              className={`btn-3d w-full text-left px-4 py-3 md:py-3.5 rounded-3xl font-extrabold border-2 flex items-center transition-all duration-200 ${
-                currentMode === 'deaf'
-                  ? 'border-sky-600 bg-sky-600 text-white shadow-lg'
-                  : 'border-slate-200 bg-white text-slate-700 hover:border-sky-400'
-              }`}
-            >
-              <span className={`p-2 rounded-2xl mr-3.5 ${currentMode === 'deaf' ? 'bg-white/20 text-white' : 'bg-sky-50 text-sky-500'}`}>
-                <i className="fa-solid fa-hands-sign text-base w-5 text-center"></i>
-              </span>
-              <div>
-                <p className="text-xs md:text-sm font-black">Mode Tunarungu</p>
-                <p className={`text-[9px] md:text-[10px] font-medium ${currentMode === 'deaf' ? 'opacity-90' : 'text-slate-500'}`}>Kamera Isyarat & BISINDO</p>
-              </div>
-            </button>
-
-            {/* TUNANETRA BUTTON */}
-            <button
-              onClick={() => handleModeChange('blind')}
-              className={`btn-3d w-full text-left px-4 py-3 md:py-3.5 rounded-3xl font-extrabold border-2 flex items-center transition-all duration-200 ${
-                currentMode === 'blind'
-                  ? 'border-yellow-500 bg-yellow-500 text-black shadow-lg font-black'
-                  : 'border-slate-200 bg-white text-slate-700 hover:border-yellow-500'
-              }`}
-            >
-              <span className={`p-2 rounded-2xl mr-3.5 ${currentMode === 'blind' ? 'bg-black/20 text-black' : 'bg-yellow-50 text-yellow-600'}`}>
-                <i className="fa-solid fa-ear-listen text-base w-5 text-center"></i>
-              </span>
-              <div>
-                <p className="text-xs md:text-sm font-black">Mode Tunanetra</p>
-                <p className={`text-[9px] md:text-[10px] font-medium ${currentMode === 'blind' ? 'text-black/80 font-bold' : 'text-slate-500'}`}>Layar Kuning Kontras & Audio</p>
-              </div>
-            </button>
-
-            {/* ADHD BUTTON */}
-            <button
-              onClick={() => handleModeChange('adhd')}
-              className={`btn-3d w-full text-left px-4 py-3 md:py-3.5 rounded-3xl font-extrabold border-2 flex items-center transition-all duration-200 ${
-                currentMode === 'adhd'
-                  ? 'border-rose-500 bg-rose-500 text-white shadow-lg'
-                  : 'border-slate-200 bg-white text-slate-700 hover:border-rose-400'
-              }`}
-            >
-              <span className={`p-2 rounded-2xl mr-3.5 ${currentMode === 'adhd' ? 'bg-white/20 text-white' : 'bg-rose-50 text-rose-500'}`}>
-                <i className="fa-solid fa-gamepad text-base w-5 text-center"></i>
-              </span>
-              <div>
-                <p className="text-xs md:text-sm font-black">Mode ADHD / Fokus</p>
-                <p className={`text-[9px] md:text-[10px] font-medium ${currentMode === 'adhd' ? 'opacity-90' : 'text-slate-500'}`}>Minimalis & Misi Gamifikasi</p>
-              </div>
-            </button>
-
-            {/* DISLEKSIA BUTTON */}
-            <button
-              onClick={() => handleModeChange('dyslexia')}
-              className={`btn-3d w-full text-left px-4 py-3 md:py-3.5 rounded-3xl font-extrabold border-2 flex items-center transition-all duration-200 ${
-                currentMode === 'dyslexia'
-                  ? 'border-teal-600 bg-teal-600 text-white shadow-lg'
-                  : 'border-slate-200 bg-white text-slate-700 hover:border-teal-500'
-              }`}
-            >
-              <span className={`p-2 rounded-2xl mr-3.5 ${currentMode === 'dyslexia' ? 'bg-white/20 text-white' : 'bg-teal-50 text-teal-600'}`}>
-                <i className="fa-solid fa-book-open-reader text-base w-5 text-center"></i>
-              </span>
-              <div>
-                <p className="text-xs md:text-sm font-black">Mode Disleksia</p>
-                <p className={`text-[9px] md:text-[10px] font-medium ${currentMode === 'dyslexia' ? 'opacity-90' : 'text-slate-500'}`}>Huruf Renggang & Penggaris</p>
-              </div>
-            </button>
-          </div>
-        </section>
-
-        {/* MAIN MODULE BENTO PANEL (Right 8 Columns) */}
-        <section className="lg:col-span-8 flex flex-col gap-6 w-full">
-          
-          {/* Main Course Content Card */}
-          <div id="main-content-card" className="bg-white bubbly-card rounded-4xl p-5 md:p-8 relative overflow-hidden flex flex-col min-h-[500px]">
-            
-            {/* Header tags */}
-            <div className="flex justify-between items-center mb-6 flex-wrap gap-2">
-              <div id="learning-track-label" className={`text-[10px] md:text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border ${
-                currentMode === 'blind' 
-                  ? 'bg-black border-yellow-400 text-yellow-400' 
-                  : currentMode === 'adhd' 
-                  ? 'bg-rose-950 border-rose-900 text-rose-400' 
-                  : 'bg-indigo-50 border-indigo-200 text-indigo-600'
-              }`}>
-                Materi: Tata Surya & Astrofisika
-              </div>
-              <div id="ai-badge" className={`text-[10px] md:text-xs px-3 py-1.5 rounded-full font-bold flex items-center space-x-1.5 shadow-sm border ${
-                currentMode === 'blind' 
-                  ? 'bg-yellow-400 text-black border-black' 
-                  : currentMode === 'adhd' 
-                  ? 'bg-rose-950 text-rose-300 border-rose-800' 
-                  : 'bg-purple-100 text-purple-700 border-purple-200'
-              }`}>
-                <i className="fa-solid fa-brain animate-pulse"></i>
-                <span id="ai-status">
-                  {currentMode === 'regular' && "AI: Mengatur Skema Representasi"}
-                  {currentMode === 'deaf' && "AI: Kamera Gesture Aktif"}
-                  {currentMode === 'blind' && "AI: Gelombang Suara & Narasi Aktif"}
-                  {currentMode === 'adhd' && "AI: Menghilangkan Distraksi"}
-                  {currentMode === 'dyslexia' && "AI: Penataan Font & Spasi"}
-                </span>
-              </div>
-            </div>
-
-            {/* Lesson Container */}
-            <div className="flex-1 flex flex-col justify-between gap-6">
-              
-              <div>
-                <h2 id="content-title" className={`text-xl md:text-3xl font-black leading-tight mb-4 ${
-                  currentMode === 'blind' ? 'text-yellow-400' : 'text-indigo-900'
-                }`}>
-                  {currentMode === 'blind' ? 'AUDIO BELAJAR - Bab 1: Tata Surya & Mars' : 'Mengenal Tata Surya & Planet Kita 🌌'}
-                </h2>
-                
-                {/* Lesson Narrative */}
-                <div id="content-text-box" className="mb-4">
-                  {currentMode === 'dyslexia' ? (
-                    <p id="content-text" className="text-slate-600 font-medium text-sm md:text-lg leading-relaxed">
-                      Halo Penjelajah Cilik! Hari ini kita akan terbang ke luar angkasa untuk melihat rumah kita, yaitu Planet <span className="keyword-highlight">Bumi</span>, dan tetangga-tetangganya yang bergerak mengelilingi <span className="keyword-highlight">Matahari</span> yang sangat besar! Planet terdekat keempat dari matahari dinamakan Planet <span className="keyword-highlight">Mars</span> yang sering dijuluki Planet Merah.
-                    </p>
-                  ) : currentMode === 'deaf' ? (
-                    <p id="content-text" className="text-slate-600 font-medium text-sm md:text-lg leading-relaxed">
-                      [Sistem menampilkan teks narasi visual tingkat tinggi]. Matahari memancarkan radiasi gravitasi yang menahan orbit Planet <span className='text-sky-600 font-extrabold'>Bumi</span> dan <span className='text-sky-600 font-extrabold'>Mars</span> agar berputar dalam lintasan berbentuk elips secara harmonis.
-                    </p>
-                  ) : currentMode === 'blind' ? (
-                    <p id="content-text" className="text-yellow-400 font-bold text-sm md:text-lg leading-relaxed">
-                      [MODE TUNANETRA LAYAR KONTRAS TINGGI AKTIF]. Audio otomatis membacakan materi ini menggunakan Text-To-Speech berstruktur tinggi. Tekan tombol audio di bawah untuk memutar ulang audio narasi.
-                    </p>
-                  ) : currentMode === 'adhd' ? (
-                    <p id="content-text" className="text-slate-400 font-medium text-sm md:text-lg leading-relaxed">
-                      Navigasi roket luar angkasa melintasi orbit. Jawab tantangan tembak asteroid di bawah untuk mengisi bahan bakar dan meluncurkan roket menuju orbit planet merah Mars!
-                    </p>
-                  ) : (
-                    <p id="content-text" className="text-slate-600 font-medium text-sm md:text-lg leading-relaxed">
-                      Halo Penjelajah Cilik! Hari ini kita akan terbang ke luar angkasa untuk melihat rumah kita, yaitu Planet Bumi, dan tetangga-tetangganya yang bergerak mengelilingi Matahari yang sangat besar!
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Dynamic Interactive Media Box */}
-              <div id="media-container" className={`w-full rounded-3xl p-4 md:p-6 flex flex-col items-center justify-center min-h-[280px] relative overflow-hidden transition-all duration-300 border-3 border-dashed ${
-                currentMode === 'blind'
-                  ? 'bg-black border-yellow-400'
-                  : currentMode === 'deaf'
-                  ? 'bg-slate-50 border-sky-200'
-                  : currentMode === 'adhd'
-                  ? 'bg-slate-950 border-rose-900'
-                  : currentMode === 'dyslexia'
-                  ? 'bg-cream-50 border-teal-300'
-                  : 'bg-slate-50 border-slate-200'
-              }`}>
-                
-                {/* 1. REGULER MEDIA (Twinkling stars orbiting) */}
-                {currentMode === 'regular' && (
-                  <div className="w-full h-full flex flex-col items-center justify-center gap-4 text-center">
-                    <div className="relative w-44 h-44 md:w-48 md:h-48 flex items-center justify-center">
-                      <div className="absolute inset-0 bg-slate-900 rounded-full border-4 border-indigo-200 overflow-hidden shadow-inner flex items-center justify-center">
-                        <div className="absolute top-4 left-6 text-white text-[8px] opacity-70 animate-ping">★</div>
-                        <div className="absolute bottom-6 right-8 text-white text-[6px] opacity-40 animate-ping">★</div>
-                        <div className="absolute top-12 right-6 text-white text-[9px] opacity-80 animate-ping">★</div>
-                        
-                        <div className="w-10 h-10 md:w-12 md:h-12 bg-amber-400 rounded-full shadow-[0_0_20px_#f59e0b] border-2 border-amber-300 animate-pulse"></div>
-                        
-                        <div className="absolute w-24 h-24 md:w-28 md:h-28 border border-slate-700/50 rounded-full animate-[spin_10s_linear_infinite] flex items-center justify-start">
-                          <div className="w-3 h-3 md:w-3.5 md:h-3.5 bg-blue-500 rounded-full border border-blue-300 shadow-[0_0_8px_#3b82f6] -ml-1.5"></div>
-                        </div>
-                        
-                        <div className="absolute w-36 h-36 md:w-40 md:h-40 border border-slate-700/30 rounded-full animate-[spin_16s_linear_infinite] flex items-center justify-end">
-                          <div className="w-2.5 h-2.5 bg-rose-500 rounded-full border border-rose-300 shadow-[0_0_8px_#f43f5e] -mr-1.25"></div>
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-xs md:text-sm font-black text-slate-700">Simulasi Orbit Tata Surya Aktif</p>
-                      <p className="text-[10px] md:text-xs text-slate-500 font-semibold mt-0.5">Representasi visual interaktif model heliosentris</p>
-                    </div>
-                    <button
-                      onClick={() => speakText("Halo Penjelajah Cilik! Hari ini kita akan terbang ke luar angkasa untuk melihat planet bumi dan matahari.", 'regular')}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-full text-xs font-bold border-b-4 border-indigo-800 hover:border-b-2 active:translate-y-0.5 flex items-center gap-2 shadow-md transition-all cursor-pointer"
-                    >
-                      <i className="fa-solid fa-volume-high"></i> Baca Penjelasan (AI TTS)
-                    </button>
-                  </div>
-                )}
-
-                {/* 2. TUNARUNGU MEDIA (Webcam skeleton + BISINDO sign hand guide) */}
-                {currentMode === 'deaf' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full h-full">
-                    {/* Left box BISINDO simulator */}
-                    <div className="bg-slate-900 border-2 border-slate-700 rounded-2xl relative overflow-hidden flex flex-col items-center justify-center p-4 min-h-[160px]">
-                      <span className="absolute top-2 left-2 bg-sky-500/85 text-white font-bold text-[8px] md:text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider">
-                        Kamus BISINDO AI (Kamus Visual)
-                      </span>
-                      <div className="flex items-center gap-6 mt-4">
-                        <div className="w-14 h-14 md:w-16 md:h-16 bg-sky-100 rounded-full flex items-center justify-center text-3xl md:text-4xl border-2 border-white shadow-md animate-bounce">
-                          👋
-                        </div>
-                        <div className="w-14 h-14 md:w-16 md:h-16 bg-emerald-100 rounded-full flex items-center justify-center text-3xl md:text-4xl border-2 border-white shadow-md animate-bounce-slow">
-                          🤟
-                        </div>
-                      </div>
-                      <div className="mt-4 text-center">
-                        <p className="text-xs text-white font-black">Isyarat Kata: "MARS"</p>
-                        <p className="text-[9px] md:text-[10px] text-sky-300 font-semibold mt-0.5">Memutar representasi isyarat 3D...</p>
-                      </div>
-                    </div>
-
-                    {/* Right webcam track simulation */}
-                    <div className="bg-slate-950 border-3 border-emerald-400 rounded-2xl relative overflow-hidden flex flex-col items-center justify-center min-h-[180px] p-2">
-                      <span className="absolute top-2 left-2 bg-emerald-500/85 text-white font-bold text-[8px] md:text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider z-20">
-                        Webcam Anda: AI Gesture Recognition
-                      </span>
-
-                      {/* Video element representing live camera input */}
-                      <video
-                        ref={webcamVideoRef}
-                        className="absolute inset-0 w-full h-full object-cover opacity-75 rounded-2xl"
-                        autoPlay
-                        muted
-                        playsInline
-                      />
-                      
-                      {/* Bounding box canvas layered on top of video */}
-                      <canvas
-                        ref={webcamCanvasRef}
-                        className="absolute inset-0 w-full h-full z-10 pointer-events-none"
-                        width="320"
-                        height="240"
-                      />
-
-                      {/* Display warning or green badge indicating detection state */}
-                      <div className="absolute bottom-2 right-2 z-20 flex gap-2">
-                        {isWebcamActive && (
-                          isHandDetectedReal ? (
-                            <span className="bg-green-500/85 text-white font-extrabold text-[8px] md:text-[9px] px-2.5 py-1 rounded-full uppercase tracking-wider shadow-md animate-pulse">
-                              Tangan Terdeteksi ✓
-                            </span>
-                          ) : (
-                            <span className="bg-amber-500/85 text-white font-extrabold text-[8px] md:text-[9px] px-2.5 py-1 rounded-full uppercase tracking-wider shadow-md animate-pulse">
-                              Posisikan Tangan Anda ✋
-                            </span>
-                          )
-                        )}
-                      </div>
-
-                      {!isWebcamActive && (
-                        <div className="z-0 flex flex-col items-center justify-center gap-2 text-center text-slate-400 p-4">
-                          <i className="fa-solid fa-camera text-3xl text-emerald-400 animate-pulse"></i>
-                          <p className="text-xs text-slate-300 font-bold">Kamera Terdeteksi...</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* 3. TUNANETRA MEDIA (Yellow on black sound visualizer waves) */}
-                {currentMode === 'blind' && (
-                  <div className="w-full flex flex-col items-center justify-center gap-4 text-center">
-                    <canvas
-                      ref={audioCanvasRef}
-                      className="w-full h-24 bg-black rounded-xl border border-yellow-400/30"
-                      width="500"
-                      height="96"
-                    />
-                    <div>
-                      <p className="text-xs md:text-sm font-black text-yellow-400" id="tts-status-indicator">
-                        {isNarrating ? "🔊 Suara AI sedang membacakan materi..." : "🎧 Gelombang Akustik Siap"}
-                      </p>
-                      <p className="text-[10px] md:text-xs text-yellow-400/80 font-semibold mt-1">
-                        Tekan tombol putar atau gunakan mic untuk menjawab.
-                      </p>
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => speakText("Matahari adalah pusat tata surya. Planet Mars adalah planet terdekat keempat dari matahari dan dikenal sebagai planet merah.", 'blind')}
-                        className="bg-yellow-400 hover:bg-white text-black font-extrabold px-5 py-2.5 rounded-2xl text-[10px] md:text-xs uppercase flex items-center gap-2 transition-all cursor-pointer"
-                      >
-                        <i className="fa-solid fa-play"></i> Putar Materi Suara
-                      </button>
-                      <button
-                        onClick={() => {
-                          if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
-                            window.speechSynthesis.cancel();
-                          }
-                        }}
-                        className="bg-black hover:bg-neutral-900 text-yellow-400 font-extrabold px-4 py-2.5 rounded-2xl text-[10px] md:text-xs border border-yellow-400 uppercase transition-all cursor-pointer"
-                      >
-                        Stop
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* 4. ADHD GAMIFIED SPACE ROCKET RUNWAY */}
-                {currentMode === 'adhd' && (
-                  <div className="w-full flex flex-col justify-between gap-6">
-                    {/* Launch Track */}
-                    <div className="relative bg-slate-900 border-2 border-slate-800 rounded-2xl p-6 h-28 flex items-center overflow-hidden">
-                      <div className="absolute left-6 right-6 h-1 bg-slate-800 rounded"></div>
-                      <div
-                        id="adhd-rocket-progress"
-                        className="absolute left-6 h-1 bg-gradient-to-r from-violet-600 to-rose-500 rounded transition-all duration-300"
-                        style={{ width: `${rocketProgress}%` }}
-                      />
-                      
-                      {/* Earth */}
-                      <div className="absolute left-6 flex flex-col items-center gap-1">
-                        <div className="text-2xl z-10 bg-slate-950 p-1.5 rounded-full border border-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]">🌍</div>
-                        <span className="text-[8px] text-slate-500 font-mono">Bumi</span>
-                      </div>
-
-                      {/* Asteroids */}
-                      <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 z-10 opacity-70">
-                        <div className="text-xl">🪨</div>
-                        <span className="text-[8px] text-slate-500 font-mono">Asteroid</span>
-                      </div>
-
-                      {/* Mars target */}
-                      <div className="absolute right-6 flex flex-col items-center gap-1">
-                        <div className="text-2xl z-10 bg-slate-950 p-1.5 rounded-full border border-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.5)] animate-pulse">🪐</div>
-                        <span className="text-[8px] text-rose-400 font-mono font-bold">Mars</span>
-                      </div>
-
-                      {/* Moving rocket */}
-                      <div
-                        id="adhd-rocket"
-                        className="absolute left-16 z-20 text-3xl transition-all duration-300 transform rotate-90"
-                        style={{
-                          transform: `translateX(${(rocketProgress / 100) * 160}px) rotate(90deg)`
-                        }}
-                      >
-                        🚀
-                      </div>
-                    </div>
-
-                    <div className="flex justify-between items-center text-[10px] md:text-xs">
-                      <span className="text-rose-400 font-bold flex items-center gap-1">
-                        <i className="fa-solid fa-gamepad animate-bounce"></i> Status Fokus Siswa: Optimal
-                      </span>
-                      <span className="text-slate-400 font-mono">Bahan Bakar Misi: <strong className="text-rose-500">{rocketProgress}%</strong></span>
-                    </div>
-                  </div>
-                )}
-
-                {/* 5. DISLEKSIA ASSISTIVE TEXT RULER PREVIEW */}
-                {currentMode === 'dyslexia' && (
-                  <div className="w-full flex flex-col items-center justify-center gap-4 text-center">
-                    <i className="fa-solid fa-book-open-reader text-5xl md:text-6xl text-teal-600 animate-bounce"></i>
-                    <div>
-                      <p className="text-xs md:text-sm font-black text-teal-900">Alat Bantu Baca Disleksia Aktif</p>
-                      <p className="text-[10px] md:text-xs text-teal-700 font-semibold mt-0.5">Kata kunci disorot secara visual. Penggaris fokus memandu pandangan baris baca.</p>
-                    </div>
-                    <button
-                      onClick={toggleReadingRuler}
-                      className={`font-extrabold py-2.5 px-5 rounded-2xl transition-all text-xs flex items-center justify-center gap-2 cursor-pointer shadow-sm ${
-                        rulerActive
-                          ? 'bg-teal-600 text-white border-b-4 border-teal-800 active:border-b-2 active:translate-y-0.5'
-                          : 'bg-white text-teal-700 border-2 border-teal-300 border-b-6 hover:border-teal-400 active:border-b-2 active:translate-y-0.5'
-                      }`}
-                    >
-                      <i className={rulerActive ? "fa-solid fa-eye-slash" : "fa-solid fa-eye"}></i>
-                      {rulerActive ? 'Matikan Penggaris Fokus' : 'Aktifkan Penggaris Fokus Baca'}
-                    </button>
-                  </div>
-                )}
-
-              </div>
-
-              {/* Dynamic Interaction Box */}
-              <div id="interaction-box" className={`rounded-3xl p-4 md:p-6 transition-all duration-300 border-3 ${
-                currentMode === 'blind'
-                  ? 'bg-black border-yellow-400'
-                  : currentMode === 'deaf'
-                  ? 'bg-sky-50 border-sky-200'
-                  : currentMode === 'adhd'
-                  ? 'bg-rose-950/20 border-rose-900'
-                  : currentMode === 'dyslexia'
-                  ? 'bg-cream-100 border-cream-300'
-                  : 'bg-amber-50 border-amber-200'
-              }`}>
-                
-                {/* 1. REGULER INTERACTION (Normal Quiz Ganda) */}
-                {currentMode === 'regular' && (
-                  <>
-                    <div className="flex justify-between items-center mb-3">
-                      <h3 className="font-extrabold text-amber-900 text-xs md:text-sm flex items-center gap-1.5">
-                        <i className="fa-solid fa-circle-question text-amber-500 animate-bounce"></i> Kuis Interaktif AI:
-                      </h3>
-                      <span className="text-[9px] md:text-[10px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full font-bold uppercase">SBT Reward</span>
-                    </div>
-                    <p className="text-xs md:text-sm text-amber-800 font-semibold mb-4">
-                      Planet apa yang dikenal sebagai Planet Merah karena kandungan besi oksida di permukaannya?
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <button
-                        onClick={() => triggerMintingModal('regular')}
-                        className="bg-white hover:bg-amber-100 text-slate-700 font-extrabold py-3 px-4 rounded-2xl border-2 border-amber-300 text-left text-xs transition-all duration-150 btn-3d shadow-sm active:translate-y-0.5 hover:border-amber-400"
-                      >
-                        A. Planet Mars
-                      </button>
-                      <button
-                        onClick={() => alert("Jawaban kurang tepat! Coba pelajari lagi.")}
-                        className="bg-white hover:bg-amber-100 text-slate-700 font-extrabold py-3 px-4 rounded-2xl border-2 border-amber-300 text-left text-xs transition-all duration-150 btn-3d shadow-sm active:translate-y-0.5 hover:border-amber-400"
-                      >
-                        B. Planet Venus
-                      </button>
-                    </div>
-                  </>
-                )}
-
-                {/* 2. TUNARUNGU INTERACTION (Gesture trigger calibration button) */}
-                {currentMode === 'deaf' && (
-                  <>
-                    <div className="flex justify-between items-center mb-3">
-                      <h3 className="font-extrabold text-sky-950 text-xs md:text-sm flex items-center gap-1.5">
-                        <i className="fa-solid fa-camera-retro text-sky-500"></i> Kamera Interaksi AI:
-                      </h3>
-                      <span className="text-[9px] md:text-[10px] bg-sky-200 text-sky-900 px-2 py-0.5 rounded-full font-bold uppercase">SBT Reward</span>
-                    </div>
-                    <p className="text-xs md:text-sm text-sky-900 font-semibold mb-4">
-                      Tantangan: Peragakan isyarat tangan untuk Planet "MARS" di depan kamera Anda untuk memicu ledger verifikasi.
-                    </p>
-                    <button
-                      onClick={startSignCalibration}
-                      disabled={isCalibrating || calibrationSuccess}
-                      className={`w-full font-black py-3.5 px-6 rounded-2xl border-b-6 active:border-b-2 active:translate-y-0.5 text-center text-xs md:text-sm transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 ${
-                        calibrationSuccess
-                          ? 'bg-emerald-500 border-emerald-700 text-white'
-                          : isCalibrating
-                          ? 'bg-slate-300 border-slate-400 text-slate-700'
-                          : isHandDetectedReal
-                          ? 'bg-emerald-600 border-emerald-800 text-white hover:bg-emerald-700 shadow-emerald-500/20'
-                          : 'bg-sky-600 border-sky-800 text-white hover:bg-sky-700'
-                      }`}
-                    >
-                      <i className={calibrationSuccess ? "fa-solid fa-circle-check" : isCalibrating ? "fa-solid fa-spinner animate-spin" : "fa-solid fa-hand"}></i>
-                      {calibrationSuccess ? 'Gestur Terdeteksi Benar!' : isCalibrating ? 'Mengevaluasi Gestur Kamera...' : isHandDetectedReal ? 'Kunci & Kirim Gestur Tangan "MARS"' : 'Simulasikan Pose Tangan "MARS"'}
-                    </button>
-                  </>
-                )}
-
-                {/* 3. TUNANETRA INTERACTION (Microphone Speak trigger) */}
-                {currentMode === 'blind' && (
-                  <>
-                    <div className="flex justify-between items-center mb-3">
-                      <h3 className="font-extrabold text-yellow-400 text-xs md:text-sm flex items-center gap-1.5">
-                        <i className="fa-solid fa-microphone text-yellow-400 animate-pulse"></i> Voice Command Aktif:
-                      </h3>
-                      <span className="text-[9px] md:text-[10px] border border-yellow-400 text-yellow-400 px-2 py-0.5 rounded-full font-bold uppercase">SBT Reward</span>
-                    </div>
-                    <p className="text-xs md:text-sm text-yellow-400 font-semibold mb-4">
-                      Kuis Suara: Ucapkan secara lantang "SATU" untuk memilih Mars, atau "DUA" untuk memilih Venus.
-                    </p>
-                    <button
-                      onClick={simulateVoiceResponse}
-                      disabled={isVoiceListening}
-                      className="w-full bg-yellow-400 text-black font-black py-4 px-6 rounded-2xl text-center text-xs md:text-sm border-b-6 border-yellow-600 active:translate-y-0.5 active:border-b-2 transition-all cursor-pointer flex items-center justify-center gap-2"
-                    >
-                      <i className={`fa-solid ${isVoiceListening ? "fa-microphone-lines animate-pulse text-red-600" : "fa-microphone-lines"}`}></i>
-                      {isVoiceListening ? 'Mendengarkan Suara Siswa...' : voiceInputReceived ? 'Ucapkan Jawaban Lagi: "SATU"' : 'Tahan & Ucapkan "SATU"'}
-                    </button>
-                  </>
-                )}
-
-                {/* 4. ADHD INTERACTION (Asteroid targets shoot layout) */}
-                {currentMode === 'adhd' && (
-                  <>
-                    <div className="flex justify-between items-center mb-3">
-                      <h3 className="font-extrabold text-rose-300 text-xs md:text-sm flex items-center gap-1.5">
-                        <i className="fa-solid fa-crosshairs text-rose-500"></i> Hancurkan Asteroid Jawaban Benar:
-                      </h3>
-                      <span className="text-[9px] md:text-[10px] bg-rose-900 text-rose-300 px-2 py-0.5 rounded-full font-bold uppercase">SBT Reward</span>
-                    </div>
-                    <p className="text-xs md:text-sm text-slate-300 font-semibold mb-4">
-                      Target Misi: Tembak asteroid yang bertuliskan nama "Planet Merah" di tata surya!
-                    </p>
-                    <div className="flex flex-wrap gap-4 justify-center py-2">
-                      <button
-                        onClick={() => handleShootAsteroid(true)}
-                        className="asteroid bg-slate-900 hover:bg-rose-950 text-rose-400 font-black py-3 px-5 rounded-full border-2 border-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.3)] text-xs md:text-sm transition-all duration-150 active:scale-95 cursor-pointer"
-                      >
-                        ☄️ MARS (TEMBAK!)
-                      </button>
-                      <button
-                        onClick={() => handleShootAsteroid(false)}
-                        className="asteroid bg-slate-900 hover:bg-slate-800 text-slate-400 font-black py-3 px-5 rounded-full border-2 border-slate-700 text-xs md:text-sm transition-all duration-150 active:scale-95 cursor-pointer opacity-75"
-                      >
-                        ☄️ VENUS
-                      </button>
-                    </div>
-                  </>
-                )}
-
-                {/* 5. DISLEKSIA INTERACTION (Spaced spelling quiz) */}
-                {currentMode === 'dyslexia' && (
-                  <>
-                    <div className="flex justify-between items-center mb-3">
-                      <h3 className="font-extrabold text-teal-950 text-xs md:text-sm flex items-center gap-1.5">
-                        <i className="fa-solid fa-circle-question text-teal-600"></i> Tantangan Pemahaman Membaca:
-                      </h3>
-                      <span className="text-[9px] md:text-[10px] bg-teal-200 text-teal-950 px-2 py-0.5 rounded-full font-bold uppercase">SBT Reward</span>
-                    </div>
-                    <p className="text-xs md:text-sm text-teal-900 font-semibold mb-4">
-                      Pelajaran di atas menyebutkan bahwa planet terdekat keempat dari Matahari adalah...
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <button
-                        onClick={() => triggerMintingModal('dyslexia')}
-                        className="bg-white hover:bg-cream-200 text-slate-800 font-extrabold py-3 px-4 rounded-2xl border-2 border-cream-300 text-left text-xs transition-all duration-150 btn-3d shadow-sm active:translate-y-0.5"
-                      >
-                        A. Planet Mars
-                      </button>
-                      <button
-                        onClick={() => alert("Coba baca sekali lagi paragraf di atas pelan-pelan ya, kamu pasti bisa!")}
-                        className="bg-white hover:bg-cream-200 text-slate-800 font-extrabold py-3 px-4 rounded-2xl border-2 border-cream-300 text-left text-xs transition-all duration-150 btn-3d shadow-sm active:translate-y-0.5"
-                      >
-                        B. Planet Venus
-                      </button>
-                    </div>
-                  </>
-                )}
-
-              </div>
-
-            </div>
-
-          </div>
-
-          {/* Blockchain Passport Soulbound Token (SBT) Card */}
-          <div id="blockchain-card" className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 p-5 md:p-8 rounded-4xl text-white shadow-xl flex flex-col gap-6 relative overflow-hidden">
-            <div className="absolute -right-16 -top-16 w-64 h-64 bg-emerald-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
-            <div className="absolute -left-16 -bottom-16 w-64 h-64 bg-cyan-400 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
-            
-            {/* SBT Passport Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-white/20 pb-5 z-10">
-              <div className="flex items-center gap-3 md:gap-4">
-                <div className="bg-white/10 p-2.5 md:p-3 rounded-2xl text-3xl md:text-4xl glass-passport border border-white/20">
-                  <i className="fa-solid fa-passport text-yellow-300"></i>
-                </div>
-                <div>
-                  <h3 className="font-black text-sm md:text-lg tracking-tight text-white flex items-center gap-1.5 flex-wrap">
-                    Blockchain Learning Passport
-                    <span className="text-[8px] md:text-[9px] bg-yellow-400/20 text-yellow-300 border border-yellow-300/30 px-2 py-0.5 rounded-full font-bold uppercase">
-                      SOULBOUND TOKEN (SBT)
-                    </span>
-                  </h3>
-                  <p className="text-[10px] md:text-xs text-emerald-100 font-semibold tracking-wide">
-                    Sertifikasi kompetensi kriptografik siswa yang permanen dan terverifikasi.
-                  </p>
-                </div>
-              </div>
-              
-              {/* Token Display Counter */}
-              <div id="wallet-status" className="bg-white/10 glass-passport border border-white/20 px-4 py-2.5 rounded-3xl text-xs font-extrabold flex items-center gap-3 w-full md:w-auto transform hover:scale-102 transition-transform duration-300">
-                <div className="bg-yellow-400 text-slate-900 rounded-full w-7 h-7 flex items-center justify-center text-sm shadow-md">
-                  🪙
-                </div>
-                <div>
-                  <p className="text-[8px] text-emerald-200 uppercase font-bold tracking-widest leading-none">SBT Terverifikasi</p>
-                  <span id="token-count" className="text-xs md:text-sm text-white font-black">{walletTokens} Token</span>
-                </div>
-              </div>
-            </div>
-
-            {/* SBT Grid Detail */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 z-10">
-              
-              {/* Badges container */}
-              <div className="col-span-1 md:col-span-2 space-y-3">
-                <h4 className="text-[10px] md:text-xs uppercase font-extrabold text-emerald-200 tracking-wider flex items-center gap-1.5">
-                  <i className="fa-solid fa-award"></i> Lencana Kompetensi Terenkripsi:
-                </h4>
-                
-                <div className="grid grid-cols-5 gap-2 md:gap-2.5">
-                  
-                  {/* Badge 1: Reguler */}
-                  <div
-                    onClick={() => unlockedBadges.regular && alert("Lencana Kosmis Terverifikasi di Blockchain!")}
-                    className={`relative flex flex-col items-center justify-center p-2.5 rounded-2xl border text-center transition-all duration-300 select-none ${
-                      unlockedBadges.regular
-                        ? 'opacity-100 border-emerald-400 bg-emerald-400/20 scale-105 shadow-[0_0_15px_rgba(52,211,153,0.5)]'
-                        : 'opacity-40 grayscale bg-white/5 border-white/10 glass-passport cursor-not-allowed'
-                    }`}
-                    title="Navigasi Kosmik (Mode Reguler)"
-                  >
-                    <i className="fa-solid fa-globe text-lg md:text-xl text-indigo-300 mb-1"></i>
-                    <span className="text-[8px] md:text-[9px] font-bold block truncate max-w-full">Kosmis</span>
-                    {unlockedBadges.regular && (
-                      <span className="absolute -top-1 -right-1 bg-emerald-500 text-white rounded-full w-4.5 h-4.5 flex items-center justify-center text-[8px] border border-white font-black">✓</span>
-                    )}
-                  </div>
-                  
-                  {/* Badge 2: Tunarungu */}
-                  <div
-                    onClick={() => unlockedBadges.deaf && alert("Lencana Isyarat Terverifikasi di Blockchain!")}
-                    className={`relative flex flex-col items-center justify-center p-2.5 rounded-2xl border text-center transition-all duration-300 select-none ${
-                      unlockedBadges.deaf
-                        ? 'opacity-100 border-emerald-400 bg-emerald-400/20 scale-105 shadow-[0_0_15px_rgba(52,211,153,0.5)]'
-                        : 'opacity-40 grayscale bg-white/5 border-white/10 glass-passport cursor-not-allowed'
-                    }`}
-                    title="Bahasa Isyarat AI (Mode Tunarungu)"
-                  >
-                    <i className="fa-solid fa-hands text-lg md:text-xl text-sky-300 mb-1"></i>
-                    <span className="text-[8px] md:text-[9px] font-bold block truncate max-w-full">Isyarat</span>
-                    {unlockedBadges.deaf && (
-                      <span className="absolute -top-1 -right-1 bg-emerald-500 text-white rounded-full w-4.5 h-4.5 flex items-center justify-center text-[8px] border border-white font-black">✓</span>
-                    )}
-                  </div>
-                  
-                  {/* Badge 3: Tunanetra */}
-                  <div
-                    onClick={() => unlockedBadges.blind && alert("Lencana Akustik Terverifikasi di Blockchain!")}
-                    className={`relative flex flex-col items-center justify-center p-2.5 rounded-2xl border text-center transition-all duration-300 select-none ${
-                      unlockedBadges.blind
-                        ? 'opacity-100 border-emerald-400 bg-emerald-400/20 scale-105 shadow-[0_0_15px_rgba(52,211,153,0.5)]'
-                        : 'opacity-40 grayscale bg-white/5 border-white/10 glass-passport cursor-not-allowed'
-                    }`}
-                    title="Interaksi Akustik (Mode Tunanetra)"
-                  >
-                    <i className="fa-solid fa-wave-square text-lg md:text-xl text-yellow-300 mb-1"></i>
-                    <span className="text-[8px] md:text-[9px] font-bold block truncate max-w-full">Akustik</span>
-                    {unlockedBadges.blind && (
-                      <span className="absolute -top-1 -right-1 bg-emerald-500 text-white rounded-full w-4.5 h-4.5 flex items-center justify-center text-[8px] border border-white font-black">✓</span>
-                    )}
-                  </div>
-                  
-                  {/* Badge 4: ADHD */}
-                  <div
-                    onClick={() => unlockedBadges.adhd && alert("Lencana Fokus Terverifikasi di Blockchain!")}
-                    className={`relative flex flex-col items-center justify-center p-2.5 rounded-2xl border text-center transition-all duration-300 select-none ${
-                      unlockedBadges.adhd
-                        ? 'opacity-100 border-emerald-400 bg-emerald-400/20 scale-105 shadow-[0_0_15px_rgba(52,211,153,0.5)]'
-                        : 'opacity-40 grayscale bg-white/5 border-white/10 glass-passport cursor-not-allowed'
-                    }`}
-                    title="Fokus Hiperaktif (Mode ADHD)"
-                  >
-                    <i className="fa-solid fa-rocket text-lg md:text-xl text-rose-300 mb-1"></i>
-                    <span className="text-[8px] md:text-[9px] font-bold block truncate max-w-full">Fokus</span>
-                    {unlockedBadges.adhd && (
-                      <span className="absolute -top-1 -right-1 bg-emerald-500 text-white rounded-full w-4.5 h-4.5 flex items-center justify-center text-[8px] border border-white font-black">✓</span>
-                    )}
-                  </div>
-                  
-                  {/* Badge 5: Disleksia */}
-                  <div
-                    onClick={() => unlockedBadges.dyslexia && alert("Lencana Literasi Terverifikasi di Blockchain!")}
-                    className={`relative flex flex-col items-center justify-center p-2.5 rounded-2xl border text-center transition-all duration-300 select-none ${
-                      unlockedBadges.dyslexia
-                        ? 'opacity-100 border-emerald-400 bg-emerald-400/20 scale-105 shadow-[0_0_15px_rgba(52,211,153,0.5)]'
-                        : 'opacity-40 grayscale bg-white/5 border-white/10 glass-passport cursor-not-allowed'
-                    }`}
-                    title="Kognisi Alternatif (Mode Disleksia)"
-                  >
-                    <i className="fa-solid fa-book-open-reader text-lg md:text-xl text-teal-300 mb-1"></i>
-                    <span className="text-[8px] md:text-[9px] font-bold block truncate max-w-full">Literasi</span>
-                    {unlockedBadges.dyslexia && (
-                      <span className="absolute -top-1 -right-1 bg-emerald-500 text-white rounded-full w-4.5 h-4.5 flex items-center justify-center text-[8px] border border-white font-black">✓</span>
-                    )}
-                  </div>
-
-                </div>
-              </div>
-
-              {/* Console log ledger */}
-              <div className="col-span-1 bg-black/30 border border-white/10 rounded-3xl p-3.5 flex flex-col justify-between text-[9px] md:text-[10px] font-mono text-emerald-300 min-h-[96px]">
-                <div>
-                  <div className="flex justify-between items-center text-white border-b border-white/10 pb-1.5 mb-2 font-sans font-bold">
-                    <span>Ledger Logs</span>
-                    <i className="fa-solid fa-terminal text-[8px] animate-pulse"></i>
-                  </div>
-                  <div className="space-y-1 overflow-y-auto max-h-20 pr-1 leading-tight">
-                    {sidebarLogs.map((log, index) => (
-                      <p key={index} className={log.text.includes('Minted') ? 'text-yellow-300' : 'text-white/60'}>
-                        [{log.time}] {log.text}
-                      </p>
-                    ))}
-                  </div>
-                </div>
-                <div className="mt-2 text-right">
-                  <button
-                    onClick={() => setLedgerModalOpen(true)}
-                    className="text-[9px] font-bold text-yellow-300 underline hover:text-yellow-100 font-sans cursor-pointer"
-                  >
-                    Audit Ledger &rarr;
-                  </button>
-                </div>
-              </div>
-
-            </div>
-
-          </div>
-
-          {/* AI Inclusive Advisor Chatbot Bento Box - Placed below the Ledger Card */}
-          <div id="chatbot-bento-card" className="bg-white bubbly-card rounded-4xl p-5 md:p-6 relative overflow-hidden">
-            <div className="absolute -right-6 -bottom-6 text-slate-100 text-8xl font-black select-none pointer-events-none opacity-25">CHAT</div>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 z-10 relative">
-              <div>
-                <h3 className="font-extrabold text-slate-800 text-sm md:text-base flex items-center gap-2">
-                  <i className="fa-solid fa-comments text-indigo-500 animate-bounce"></i> AI Inclusive Advisor & Chatbot
-                </h3>
-                <p className="text-[11px] text-slate-500 font-semibold mt-1">
-                  Konsultasi tips mengajar adaptif & kurikulum inklusi khusus ABK bagi pendidik dan orang tua.
-                </p>
-              </div>
-              <button
-                onClick={() => setIsChatpageActive(true)}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold py-3 px-5 rounded-3xl border-b-6 border-indigo-800 active:border-b-2 active:translate-y-0.5 transition-all text-xs flex items-center gap-2 shadow-md shrink-0 cursor-pointer w-full sm:w-auto justify-center"
-              >
-                <i className="fa-solid fa-paper-plane animate-pulse"></i> Buka Chatbot &rarr;
-              </button>
-            </div>
-          </div>
-
-        </section>
-      </main>
-
-      {/* Footer bento panel */}
-      <footer className="max-w-7xl w-full mx-auto px-4 md:px-6 pb-6 mt-6">
-        <div className="bg-slate-900 border-2 border-slate-800 rounded-4xl py-6 text-center text-xs text-slate-500 font-semibold relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-indigo-950/20 via-transparent to-rose-950/20 pointer-events-none"></div>
-          <p className="z-10 relative">&copy; 2026 SatuArah Inklusi Tech - Tim LIDM ITDP Universitas Muhammadiyah Surakarta.</p>
-          <p className="z-10 relative mt-1 text-[9px] md:text-[10px] text-slate-600 uppercase tracking-widest font-bold">Edukasi Tanpa Sekat, Fleksibel Penuh Berkat AI</p>
-        </div>
-      </footer>
-
-      {/* ============================================== */}
-      {/* MODAL SYSTEMS */}
-      {/* ============================================== */}
-
-      {/* BLOCKCHAIN MINTING STATION MODAL */}
-      {mintingModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md transition-all duration-300">
-          <div className="bg-slate-900 border-3 border-emerald-500/80 text-white rounded-5xl w-full max-w-lg p-6 md:p-8 flex flex-col items-center justify-center text-center shadow-[0_0_50px_rgba(16,185,129,0.3)] animate-float">
-            
-            {/* Coin Animation */}
-            <div className="relative w-28 h-28 md:w-32 md:h-32 flex items-center justify-center mb-6">
-              <div className="absolute inset-0 rounded-full border-4 border-dashed border-emerald-400 animate-spin-slow"></div>
-              <div className="w-16 h-16 md:w-20 md:h-20 bg-gradient-to-tr from-amber-300 via-yellow-400 to-amber-500 rounded-full flex items-center justify-center text-3xl md:text-4xl shadow-[0_0_30px_#f59e0b] border-2 border-white select-none relative animate-bounce-slow">
-                🪙
-                <div className="absolute inset-1.5 border border-dashed border-white/40 rounded-full"></div>
-              </div>
-            </div>
-
-            <h3 className="text-lg md:text-2xl font-black text-white mb-1.5">
-              Blockchain Minting Station
-            </h3>
-            <p className="text-[10px] md:text-xs text-slate-400 font-semibold mb-5 max-w-sm">
-              Mengamankan capaian belajar siswa pada ledger terdistribusi (Inclusion Trust Network).
-            </p>
-
-            {/* Smart contract logs console */}
-            <div className="w-full bg-black/60 rounded-3xl p-4 text-left font-mono text-[9px] md:text-[10px] text-emerald-400 border border-slate-800 space-y-1 shadow-inner h-32 md:h-36 overflow-y-auto mb-6 scrollbar-thin scrollbar-thumb-emerald-800">
-              {mintingLogs.map((log, index) => (
-                <p
-                  key={index}
-                  className={
-                    log.includes('sukses') ? 'text-yellow-300 font-bold' : log.includes('Hash') ? 'text-cyan-300' : ''
-                  }
+              {mintingStatusText.includes('Hubungkan') && (
+                <button
+                  onClick={executeMinting}
+                  className="w-full bg-emerald-500 text-white font-black py-2.5 rounded-xl text-[9px] uppercase border-b-3 border-emerald-700"
                 >
-                  {log}
-                </p>
-              ))}
+                  Konfirmasi Minting SBT
+                </button>
+              )}
             </div>
-
-            {/* Action buttons */}
-            <button
-              onClick={handleClaimSBT}
-              disabled={!mintingComplete}
-              className={`w-full font-extrabold py-3.5 px-6 rounded-3xl border-b-6 flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                mintingComplete
-                  ? 'bg-emerald-500 hover:bg-emerald-600 text-white border-emerald-700 active:border-b-2 active:translate-y-0.5'
-                  : 'bg-emerald-500/35 text-white/50 border-emerald-800/20 opacity-50 cursor-not-allowed'
-              }`}
-            >
-              <i className="fa-solid fa-shield-halved"></i>
-              <span>{mintingComplete ? 'Klaim Lencana Kompetensi (SBT)' : 'Memproses Transaksi...'}</span>
-            </button>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* LEDGER AUDIT TRAILS MODAL */}
-      {ledgerModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md transition-all duration-300">
-          <div className="bg-slate-900 border-3 border-indigo-500/80 text-white rounded-5xl w-full max-w-xl p-5 md:p-8 flex flex-col shadow-2xl">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-4 mb-4">
-              <h3 className="text-base md:text-lg font-black text-white flex items-center gap-2">
-                <i className="fa-solid fa-cube text-indigo-400"></i> Audit Ledger Blockchain SBT
-              </h3>
-              <button onClick={() => setLedgerModalOpen(false)} className="text-slate-400 hover:text-white text-xl cursor-pointer">
-                <i className="fa-solid fa-circle-xmark"></i>
-              </button>
-            </div>
-            
-            <div className="space-y-4 text-[11px] md:text-xs font-mono flex-1 overflow-y-auto max-h-80 pr-2">
-              <div className="p-3 bg-black/40 rounded-2xl border border-slate-800">
-                <p className="text-indigo-300 font-bold font-sans">Informasi Wallet Siswa:</p>
-                <p className="text-slate-400 mt-1">Address: 0x8458ee3fd78a4d91b0d9c25e5beb4bbe</p>
-                <p className="text-slate-400">SBT Contract Standard: ERC-5114 (Soulbound Token)</p>
-                <p className="text-slate-400">Status: Verifikasi Sinkron (12 Nodes Online)</p>
-              </div>
-              
-              <div className="space-y-2">
-                <p className="text-indigo-300 font-bold font-sans">Riwayat Blok Emiten (Competency Records):</p>
-                <div className="space-y-2">
-                  {blockchainHistory.length > 0 ? (
-                    blockchainHistory.map((item, idx) => (
-                      <div key={idx} className="p-3 bg-black/60 rounded-2xl border border-emerald-500/30 text-emerald-400">
-                        <p className="font-bold font-sans text-white text-xs uppercase">Lencana: {item.mode.toUpperCase()}</p>
-                        <p className="mt-0.5">Waktu: {item.timestamp}</p>
-                        <p className="text-cyan-400">Tx: {item.txHash}</p>
-                        <p className="text-[9px] text-slate-500">Secured via Proof of Competency (PoC) consensus.</p>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-slate-500 text-center py-6 font-sans">
-                      Belum ada riwayat cetak token. Selesaikan kuis atau misi pada tiap mode untuk mengumpulkan token SBT!
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-            
-            <button
-              onClick={() => setLedgerModalOpen(false)}
-              className="mt-6 w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 px-4 rounded-2xl text-center cursor-pointer text-xs md:text-sm"
-            >
-              Tutup Audit
-            </button>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }
