@@ -52,6 +52,7 @@ export default function App() {
   
   const adhdGameCanvasRef = useRef(null);
   const adhdGameLoopRef = useRef(null);
+  const loopInstanceIdRef = useRef(0);
   const focusNodesRef = useRef([]);
   const toastTimeoutRef = useRef(null);
 
@@ -176,7 +177,7 @@ export default function App() {
     if (!isLoggedIn) return;
 
     if (selectedMode === 'tunanetra') {
-      document.body.classList.add('mode-blind');
+      document.body.classList.add('mode-tunanetra');
     } else if (selectedMode === 'adhd') {
       document.body.classList.add('mode-adhd');
     } else if (selectedMode === 'disleksia') {
@@ -567,23 +568,26 @@ export default function App() {
 
   // Sync selectedMode and controlMode to start/stop camera
   useEffect(() => {
-    if (selectedMode === 'adhd') {
+    if (selectedMode === 'adhd' && adhdGameState !== 'won' && adhdGameState !== 'lost') {
       if (adhdControlMode === 'camera' && !adhdCamReady) {
         startAdhdCamera();
       }
     } else {
       stopAdhdCamera();
     }
-  }, [selectedMode, adhdControlMode, adhdCamReady, startAdhdCamera, stopAdhdCamera]);
+  }, [selectedMode, adhdControlMode, adhdCamReady, adhdGameState, startAdhdCamera, stopAdhdCamera]);
   useEffect(() => {
     const currentGameState = gameStateRef.current;
     if (adhdGameState !== 'playing') {
-      if (adhdGameLoopRef.current) {
-        cancelAnimationFrame(adhdGameLoopRef.current);
-        adhdGameLoopRef.current = null;
+      if (currentGameState.frameId) {
+        cancelAnimationFrame(currentGameState.frameId);
+        currentGameState.frameId = null;
       }
       return;
     }
+
+    loopInstanceIdRef.current += 1;
+    const currentLoopId = loopInstanceIdRef.current;
 
     const canvas = adhdGameCanvasRef.current;
     if (!canvas) return;
@@ -670,7 +674,7 @@ export default function App() {
     };
 
     const loop = () => {
-      if (!gameStateRef.current.active) return;
+      if (!gameStateRef.current.active || loopInstanceIdRef.current !== currentLoopId) return;
 
       const w = canvas.width;
       const h = canvas.height;
@@ -1369,6 +1373,9 @@ export default function App() {
                 startDyslexiaReadingMic={startDyslexiaReadingMic}
                 readingResultText={readingResultText}
                 dyslexiaPronounceCorrect={dyslexiaPronounceCorrect}
+                speakText={speakText}
+                stopSpeaking={stopSpeaking}
+                triggerBadgeMinting={triggerBadgeMinting}
               />
             )}
             
@@ -1391,7 +1398,7 @@ export default function App() {
         {/* VIEW 3: CHATBOT OVERLAY DIALOG */}
         {/* ============================================================== */}
         {chatOpen && isLoggedIn && (
-          <div className="absolute bottom-20 right-4 left-4 z-40 bg-white border-3 border-emerald-200 rounded-3xl shadow-xl flex flex-col h-[350px] animate-float overflow-hidden">
+          <div className="absolute bottom-20 right-4 left-4 z-40 bg-white border-3 border-emerald-200 rounded-3xl shadow-xl flex flex-col h-[350px] overflow-hidden">
             {/* Chatbot Header */}
             <div className="bg-emerald-500 text-white px-4 py-3 flex items-center justify-between border-b border-emerald-600">
               <div className="flex items-center gap-2">
@@ -1482,7 +1489,7 @@ export default function App() {
         {isLoggedIn && !chatOpen && (
           <button
             onClick={() => setChatOpen(true)}
-            className="absolute bottom-20 right-4 z-40 w-12 h-12 bg-emerald-500 hover:bg-emerald-600 text-white text-2xl rounded-full shadow-lg flex items-center justify-center border-b-3 border-emerald-700 active:translate-y-0.5 active:border-b-0 animate-bounce cursor-pointer"
+            className="absolute bottom-20 right-4 z-40 w-12 h-12 bg-emerald-500 hover:bg-emerald-600 text-white text-2xl rounded-full shadow-lg flex items-center justify-center border-b-3 border-emerald-700 active:translate-y-0.5 active:border-b-0 cursor-pointer"
             style={{ bottom: '76px' }}
             title="Tanya AI Advisor"
           >
@@ -1530,26 +1537,7 @@ export default function App() {
           </footer>
         )}
 
-        {/* BLOCKCHAIN SBT MINTING MODAL OVERLAY */}
-        {isMintingModalOpen && (
-          <div className="absolute inset-0 bg-slate-950/80 z-50 flex items-center justify-center p-4">
-            <div className="bg-slate-900 border-2 border-emerald-500 text-white rounded-3xl p-5 w-full max-w-[280px] text-center space-y-4 shadow-xl">
-              <div className="text-4xl animate-spin-slow">🪙</div>
-              <h4 className="font-black text-xs text-white">Trust Ledger Minting Station</h4>
-              <p className="text-[8px] text-slate-400 leading-relaxed">
-                {mintingStatusText}
-              </p>
-              {mintingStatusText.includes('Hubungkan') && (
-                <button
-                  onClick={executeMinting}
-                  className="w-full bg-emerald-500 text-white font-black py-2.5 rounded-xl text-[9px] uppercase border-b-3 border-emerald-700"
-                >
-                  Konfirmasi Minting SBT
-                </button>
-              )}
-            </div>
-          </div>
-        )}
+
 
       </div>
     </div>
