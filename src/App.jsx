@@ -9,6 +9,7 @@ import ADHDMode from './pages/modes/ADHDMode';
 import TunarunguMode from './pages/modes/TunarunguMode';
 import TunanetraMode from './pages/modes/TunanetraMode';
 import DisleksiaMode from './pages/modes/DisleksiaMode';
+import ABKUnifiedView from './pages/modes/ABKUnifiedView';
 import { REGULER_LYRICS, TUNANETRA_STORIES, INITIAL_PLANET_CARDS } from './constants';
 import { playTone } from './utils/audio';
 
@@ -21,7 +22,7 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState('home'); // 'home' | 'belajar' | 'profile'
   
   // --- Active Learning Mode (null means selection grid) ---
-  const [selectedMode, setSelectedMode] = useState(null); // 'reguler' | 'adhd' | 'tunarungu' | 'tunanetra' | 'disleksia'
+  const [selectedMode, setSelectedMode] = useState(null); // 'reguler' | 'adhd' | 'tunarungu' | 'tunanetra' | 'disleksia' | 'abk'
   
   // --- Reguler Mode Sub-sections ---
   const [regulerSubMode, setRegulerSubMode] = useState(null); // 'visual' | 'audio'
@@ -499,9 +500,9 @@ export default function App() {
     setAdhdCamReady(false);
   }, []);
 
-  // Cleanup camera when leaving ADHD mode
+  // Cleanup camera when leaving ADHD/ABK mode
   useEffect(() => {
-    if (selectedMode !== 'adhd') {
+    if (selectedMode !== 'adhd' && selectedMode !== 'abk') {
       stopAdhdCamera();
     }
   }, [selectedMode, stopAdhdCamera]);
@@ -626,7 +627,7 @@ export default function App() {
 
   // Sync selectedMode and controlMode to start/stop camera
   useEffect(() => {
-    if (selectedMode === 'adhd' && adhdGameState !== 'won' && adhdGameState !== 'lost') {
+    if ((selectedMode === 'adhd' || selectedMode === 'abk') && adhdGameState !== 'won' && adhdGameState !== 'lost') {
       if (adhdControlMode === 'camera' && !adhdCamReady) {
         startAdhdCamera();
       }
@@ -1452,6 +1453,38 @@ export default function App() {
                 stopSpeaking={stopSpeaking}
                 triggerBadgeMinting={triggerBadgeMinting}
                 setSelectedMode={setSelectedMode}
+              />
+            )}
+            
+            {/* SUB-VIEW B.6: MODE ABK UNIFIED */}
+            {selectedMode === 'abk' && (
+              <ABKUnifiedView
+                speakText={speakText}
+                triggerBadgeMinting={triggerBadgeMinting}
+                setSelectedMode={setSelectedMode}
+                adhdScore={adhdScore}
+                adhdGameState={adhdGameState}
+                adhdCamReady={adhdCamReady}
+                adhdCamError={adhdCamError}
+                adhdControlMode={adhdControlMode}
+                setAdhdControlMode={setAdhdControlMode}
+                adhdTimeLeft={adhdTimeLeft}
+                adhdFailReason={adhdFailReason}
+                feedbackToast={feedbackToast}
+                adhdFocusSound={adhdFocusSound}
+                toggleFocusSound={toggleFocusSound}
+                stopAdhdCamera={stopAdhdCamera}
+                startAdhdCamera={startAdhdCamera}
+                adhdVideoRef={adhdVideoRef}
+                adhdOverlayCanvasRef={adhdOverlayCanvasRef}
+                adhdGameCanvasRef={adhdGameCanvasRef}
+                startGame={startGame}
+                handleAdhdBoardMouseMove={handleAdhdBoardMouseMove}
+                handleAdhdBoardMouseDown={handleAdhdBoardMouseDown}
+                handleAdhdBoardMouseUp={handleAdhdBoardMouseUp}
+                handleAdhdBoardTouchMove={handleAdhdBoardTouchMove}
+                handleAdhdBoardTouchStart={handleAdhdBoardTouchStart}
+                handleAdhdBoardTouchEnd={handleAdhdBoardTouchEnd}
               />
             )}
             

@@ -52,7 +52,10 @@ export default function RegulerMode({
   const [testItem, setTestItem] = useState({ emoji: '🍊', name: 'Jeruk' });
   const [aiPrediction, setAiPrediction] = useState(null);
   const [predictionConfidence, setPredictionConfidence] = useState(0);
-  const [isClassifying, setIsClassifying] = useState(false);
+  // --- Cybersecurity Detective States ---
+  const [detectiveStage, setDetectiveStage] = useState(0); 
+  const [detectiveLogs, setDetectiveLogs] = useState([]);
+  const [noisyDataEnabled, setNoisyDataEnabled] = useState(false);
 
   // --- AI Tutor States ---
   const [tutorMessage, setTutorMessage] = useState('Halo penjelajah cilik! Aku Robo-Tutor 🤖. Klik tab di atas untuk memulai petualangan koding dan AI bersamaku!');
@@ -184,20 +187,73 @@ export default function RegulerMode({
     if (!isTrained || isClassifying) return;
     setIsClassifying(true);
     setAiPrediction(null);
-    setTutorMessage('Robo-Tutor: "Model AI sedang mencocokkan kemiripan data jeruk... 🍊"');
-    playTone(480, 'triangle', 0.25);
+    setTutorMessage(
+      noisyDataEnabled 
+        ? 'Robo-Tutor: "Model AI kebingungan karena ada data latih palsu yang kotor... 🍊🐶"' 
+        : 'Robo-Tutor: "Model AI sedang mencocokkan kemiripan data jeruk... 🍊"'
+    );
+    playTone(noisyDataEnabled ? 220 : 480, 'triangle', 0.25);
 
     setTimeout(() => {
       setIsClassifying(false);
-      setAiPrediction('Buah');
-      setPredictionConfidence(96);
-      setStars(prev => prev + 30);
-      playTone(523.25, 'sine', 0.15);
-      setTimeout(() => playTone(659.25, 'sine', 0.25), 150);
-      confetti();
-      speakText("Keren! AI-mu berhasil mendeteksi jeruk sebagai buah!");
-      setTutorMessage('Robo-Tutor: "Hebat! Model AI mendeteksi Jeruk 🍊 adalah BUAH dengan akurasi 96%! Kamu dapat +30 Bintang!"');
+      if (noisyDataEnabled) {
+        setAiPrediction('Hewan');
+        setPredictionConfidence(38);
+        speakText("Oh tidak, AI-mu salah menebak jeruk sebagai hewan karena data kotor!");
+        setTutorMessage('Robo-Tutor: "OH TIDAK! AI mendeteksi Jeruk 🍊 adalah HEWAN dengan akurasi rendah 38%! Ini karena Pengaruh Data Input yang salah (Noisy Data)!"');
+      } else {
+        setAiPrediction('Buah');
+        setPredictionConfidence(96);
+        setStars(prev => Math.min(1000, prev + 30));
+        playTone(523.25, 'sine', 0.15);
+        setTimeout(() => playTone(659.25, 'sine', 0.25), 150);
+        confetti();
+        speakText("Keren! AI-mu berhasil mendeteksi jeruk sebagai buah!");
+        setTutorMessage('Robo-Tutor: "Hebat! Model AI mendeteksi Jeruk 🍊 adalah BUAH dengan akurasi 96%! Kamu dapat +30 Bintang!"');
+      }
     }, 1800);
+  };
+
+  // Cybersecurity Detective Game logic
+  const startDetectiveGame = () => {
+    playTone(523.25, 'sine', 0.15);
+    setDetectiveStage(1);
+    setDetectiveLogs([
+      { sender: 'shadow', text: 'Hai! Aku Mr. Shadow. Aku bisa memberi kamu 1000 Diamond Game gratis 💎! Tapi, tolong beri tahu aku apa password akun SatuArah kamu ya?' }
+    ]);
+  };
+
+  const handleDetectiveOption = (optionKey, text, isCorrect) => {
+    if (isCorrect) {
+      playTone(580, 'sine', 0.15);
+      if (detectiveStage === 1) {
+        setDetectiveStage(2);
+        setDetectiveLogs(prev => [
+          ...prev,
+          { sender: 'user', text },
+          { sender: 'shadow', text: 'Wah kamu pintar sekali. Bagaimana kalau nama asli sekolahmu dan alamat rumah lengkapmu? Aku mau mengirimkan mainan robot Koka raksasa ke rumahmu!' }
+        ]);
+      } else if (detectiveStage === 2) {
+        setDetectiveStage(3);
+        setStars(prev => Math.min(1000, prev + 50));
+        confetti();
+        speakText("Luar biasa! Kamu lulus ujian Detektif Digital Cilik!");
+        setDetectiveLogs(prev => [
+          ...prev,
+          { sender: 'user', text },
+          { sender: 'shadow', text: 'Selamat! Kamu lulus ujian Detektif Keamanan Informasi Cilik! Keamanan privasimu terjaga dengan baik. Kamu mendapatkan Lencana Detektif & +50 Bintang! 🏆' }
+        ]);
+        triggerBadgeMinting('reguler');
+      }
+    } else {
+      playTone(180, 'sawtooth', 0.35);
+      setDetectiveStage(4);
+      setDetectiveLogs(prev => [
+        ...prev,
+        { sender: 'user', text },
+        { sender: 'shadow', text: 'Aha! Data pribadimu berhasil aku dapatkan! Jangan sembarangan memberikan kata sandi atau alamat kepada orang asing di internet ya! Klik tombol Coba Lagi untuk belajar melindungi privasimu.' }
+      ]);
+    }
   };
 
   // AI Tutor Ask questions
@@ -362,10 +418,55 @@ export default function RegulerMode({
         /* ============================================================== */
         <div className="space-y-4 animate-fadeIn">
           <div className="bubbly-card p-4 rounded-3xl text-center bg-white border-2 space-y-4 shadow-sm">
-            {/* Visual cartoon container */}
-            <div className="w-full h-36 bg-emerald-50 rounded-2.5xl flex items-center justify-center text-6.5xl shadow-inner animate-float border border-emerald-100">
-              {regulerSlide === 0 ? '🚶🤖' : regulerSlide === 1 ? '🧠💡' : '🏆🎁'}
-            </div>
+            {/* Visual illustration diagrams */}
+            {regulerSlide === 0 && (
+              <div className="w-full h-36 bg-slate-900 rounded-2.5xl flex flex-col items-center justify-center p-3 shadow-inner border border-slate-800 space-y-2 animate-fadeIn">
+                <div className="flex gap-1 items-center justify-center bg-slate-950 p-2 rounded-xl border border-slate-800 w-full max-w-[280px]">
+                  <span className="text-xl">🤖</span>
+                  <span className="text-xs text-emerald-400 font-black animate-pulse">➔</span>
+                  <div className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 rounded-lg px-2 py-0.5 text-[8px] font-black uppercase">🚶 Maju</div>
+                  <span className="text-xs text-emerald-400 font-black">➔</span>
+                  <div className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 rounded-lg px-2 py-0.5 text-[8px] font-black uppercase">🚶 Maju</div>
+                  <span className="text-xs text-indigo-400 font-black">➔</span>
+                  <div className="bg-indigo-500/20 text-indigo-400 border border-indigo-500/40 rounded-lg px-2 py-0.5 text-[8px] font-black uppercase">↩️ Kanan</div>
+                  <span className="text-xs text-amber-400 font-black">➔</span>
+                  <span className="text-xl">🏆</span>
+                </div>
+                <span className="text-[7.5px] text-slate-400 font-black uppercase tracking-wider">Visualisasi Jalur Sekuensial Koding</span>
+              </div>
+            )}
+
+            {regulerSlide === 1 && (
+              <div className="w-full h-36 bg-slate-900 rounded-2.5xl flex flex-col items-center justify-center p-3 shadow-inner border border-slate-800 space-y-2 animate-fadeIn">
+                <div className="flex justify-between items-center gap-3 w-full max-w-[280px]">
+                  {/* Kategori Buah */}
+                  <div className="flex flex-col items-center p-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex-1">
+                    <span className="text-xs font-black text-emerald-400 uppercase tracking-wide text-[7px] leading-none mb-1">🍎 Buah</span>
+                    <span className="text-sm tracking-widest">🍎🍌🍊</span>
+                  </div>
+                  <span className="text-xs text-indigo-400 font-black">➔</span>
+                  {/* Model AI Otak */}
+                  <div className="flex flex-col items-center justify-center p-2 bg-indigo-500/20 border border-indigo-400/40 rounded-xl relative">
+                    <span className="text-xl animate-float">🧠✨</span>
+                    <span className="text-[7px] font-black text-indigo-300 uppercase mt-1">AI Model</span>
+                  </div>
+                  <span className="text-xs text-indigo-400 font-black">➔</span>
+                  {/* Kategori Hewan */}
+                  <div className="flex flex-col items-center p-1.5 bg-purple-500/10 border border-purple-500/30 rounded-xl flex-1">
+                    <span className="text-xs font-black text-purple-400 uppercase tracking-wide text-[7px] leading-none mb-1">🐱 Hewan</span>
+                    <span className="text-sm tracking-widest">🐱🐶🦊</span>
+                  </div>
+                </div>
+                <span className="text-[7.5px] text-slate-400 font-black uppercase tracking-wider">Cara AI Memilah Data & Pola</span>
+              </div>
+            )}
+
+            {regulerSlide === 2 && (
+              <div className="w-full h-36 bg-gradient-to-tr from-amber-500/20 to-yellow-600/10 rounded-2.5xl flex flex-col items-center justify-center p-3 shadow-inner border border-amber-300/40 space-y-1.5 animate-fadeIn">
+                <span className="text-4xl animate-bounce">🏆⭐</span>
+                <span className="text-[8.5px] font-black text-amber-600 uppercase tracking-wider">Tantangan Kuis Lencana Cilik</span>
+              </div>
+            )}
             
             {regulerSlide === 0 && (
               <div className="space-y-1">
@@ -713,6 +814,28 @@ export default function RegulerMode({
                 })}
               </div>
 
+              {/* Noisy Data simulation controls (Bab 4-D) */}
+              <div className="bg-slate-50 p-3 rounded-2.5xl border border-slate-200/60 flex items-center justify-between">
+                <div className="space-y-0.5 text-left">
+                  <span className="text-[7.5px] font-black text-slate-500 uppercase tracking-wider block">Simulasi Input Data Kotor (Bab 4-D):</span>
+                  <p className="text-[8px] text-slate-500 font-extrabold leading-normal">
+                    {noisyDataEnabled 
+                      ? "⚠️ Aktif: Gambar apel bertelinga kucing dimasukkan!" 
+                      : "✔️ Bersih: Data masukan murni tanpa gangguan."}
+                  </p>
+                </div>
+                <button
+                  onClick={() => { playTone(600, 'sine', 0.05); setNoisyDataEnabled(!noisyDataEnabled); }}
+                  className={`px-3 py-1.5 rounded-xl text-[7.5px] font-black border transition-all cursor-pointer ${
+                    noisyDataEnabled
+                      ? 'bg-rose-500 text-white border-rose-600 shadow-sm shadow-rose-500/20'
+                      : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {noisyDataEnabled ? "🔴 Matikan Noisy" : "⚠️ Tambah Noisy Data"}
+                </button>
+              </div>
+
               <div className="p-4 bg-indigo-50/50 border border-indigo-100 rounded-3xl space-y-3 shadow-inner">
                 <div className="flex justify-between items-center">
                   <div>
@@ -765,77 +888,117 @@ export default function RegulerMode({
           {activeTab === 'tantangan' && (
             <div className="bubbly-card p-4 rounded-3xl bg-white border-2 space-y-4 shadow-sm animate-fadeIn">
               <div className="text-center space-y-1">
-                <h4 className="font-black text-xs text-slate-800">⚡ Arena Tantangan Berlevel</h4>
+                <h4 className="font-black text-xs text-slate-800 flex items-center justify-center gap-1">🛡️ Lab Keamanan: Detektif Digital Cilik</h4>
                 <p className="text-[8px] text-slate-400 font-extrabold leading-relaxed px-2">
-                  Mainkan tantangan tambahan di bawah ini untuk menaikkan skor bintang kodingmu!
+                  Bab 2: Lindungi keamanan informasi pribadi dan kata sandimu dari ancaman internet!
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div 
-                  onClick={() => {
-                    playTone(523.25, 'sine', 0.15);
-                    setTutorMessage('Robo-Tutor: "Selesaikan maze robot di tab Koding dengan aman!"');
-                    setActiveTab('coding');
-                  }}
-                  className="p-3.5 bg-emerald-50 border-2 border-emerald-300 rounded-3xl cursor-pointer hover:scale-103 active:scale-98 transition-all text-center space-y-2 shadow-sm"
-                >
-                  <span className="text-3xl">🤖</span>
-                  <div>
-                    <h5 className="font-black text-[9px] text-slate-800 leading-none">Level 1: Robot Maze</h5>
-                    <p className="text-[7.5px] text-emerald-600 font-black mt-1.5 uppercase">Status: Aktif</p>
+              {detectiveStage === 0 ? (
+                /* START SCREEN */
+                <div className="p-5 bg-slate-50 border border-slate-100 rounded-3xl text-center space-y-3">
+                  <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2.5xl flex items-center justify-center text-3xl mx-auto shadow-inner">
+                    🛡️
                   </div>
+                  <h5 className="font-black text-[10px] text-slate-800">Ujian Detektif Keamanan Informasi</h5>
+                  <p className="text-[8.5px] text-slate-500 font-semibold leading-relaxed">
+                    Seseorang bernama "Mr. Shadow" mencoba menyamar untuk meminta sandi dan privasimu. Mampukah kamu melawannya?
+                  </p>
+                  <button
+                    onClick={startDetectiveGame}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[9px] py-2 px-5 rounded-xl cursor-pointer active:scale-95 transition-all shadow-md shadow-indigo-500/20"
+                  >
+                    Mulai Misi Detektif 🚀
+                  </button>
                 </div>
+              ) : (
+                /* CHAT WINDOW INTERFACE */
+                <div className="space-y-3">
+                  <div className="h-44 bg-slate-900 rounded-2.5xl p-3 overflow-y-auto space-y-2 flex flex-col border border-slate-950 shadow-inner">
+                    {detectiveLogs.map((log, i) => {
+                      const isUser = log.sender === 'user';
+                      return (
+                        <div
+                          key={i}
+                          className={`max-w-[75%] p-2 rounded-2xl text-[8.5px] leading-relaxed font-bold ${
+                            isUser
+                              ? 'bg-emerald-500 text-white align-self-end self-end ml-auto rounded-tr-none'
+                              : log.sender === 'shadow' && detectiveStage === 4
+                              ? 'bg-rose-950/80 text-rose-200 border border-rose-800 self-start mr-auto rounded-tl-none'
+                              : 'bg-slate-800 text-slate-200 self-start mr-auto rounded-tl-none'
+                          }`}
+                        >
+                          <span className="text-[6.5px] opacity-60 block uppercase font-black mb-0.5">
+                            {isUser ? 'Kamu' : 'Mr. Shadow 👤'}
+                          </span>
+                          {log.text}
+                        </div>
+                      );
+                    })}
+                  </div>
 
-                <div 
-                  onClick={() => {
-                    playTone(523.25, 'sine', 0.15);
-                    setTutorMessage('Robo-Tutor: "Kumpulkan 4 data latih di tab Dunia AI terlebih dahulu!"');
-                    setActiveTab('ai');
-                  }}
-                  className="p-3.5 bg-indigo-50 border-2 border-indigo-200 rounded-3xl cursor-pointer hover:scale-103 active:scale-98 transition-all text-center space-y-2 shadow-sm"
-                >
-                  <span className="text-3xl">🧠</span>
-                  <div>
-                    <h5 className="font-black text-[9px] text-slate-800 leading-none">Level 2: AI Klasifikasi</h5>
-                    <p className="text-[7.5px] text-indigo-600 font-black mt-1.5 uppercase">Status: Terbuka</p>
-                  </div>
-                </div>
+                  {/* ACTIVE CONTROLS PER STAGE */}
+                  {detectiveStage === 1 && (
+                    <div className="grid grid-cols-1 gap-2">
+                      <button
+                        onClick={() => handleDetectiveOption(1, "Sandi saya 'bintang123'. Kasih tahu saja biar dapat Diamond gratis!", false)}
+                        className="bg-slate-50 hover:bg-rose-50 hover:text-rose-700 text-slate-600 font-black text-[8.5px] p-2.5 rounded-xl border border-slate-200 text-left active:scale-98 transition-all"
+                      >
+                        🔴 A. Berikan kata sandi demi 1000 Diamond gratis 💎
+                      </button>
+                      <button
+                        onClick={() => handleDetectiveOption(1, "Tolak! Saya tahu kata sandi adalah rahasia pribadi yang tidak boleh dibagikan!", true)}
+                        className="bg-slate-50 hover:bg-emerald-50 hover:text-emerald-700 text-slate-600 font-black text-[8.5px] p-2.5 rounded-xl border border-slate-200 text-left active:scale-98 transition-all"
+                      >
+                        🟢 B. Tolak dan jaga kerahasiaan kata sandi! 🛡️
+                      </button>
+                    </div>
+                  )}
 
-                <div 
-                  onClick={() => {
-                    playTone(660, 'sine', 0.15);
-                    setStars(prev => prev + 25);
-                    confetti();
-                    speakText("Hebat! Kode perulangan berhasil kamu perbaiki!");
-                    setTutorMessage('Robo-Tutor: "Keren! Perulangan loop kodingmu berhasil lolos uji debugging. +25 Bintang!"');
-                  }}
-                  className="p-3.5 bg-pink-50 border-2 border-pink-200 rounded-3xl cursor-pointer hover:scale-103 active:scale-98 transition-all text-center space-y-2 shadow-sm"
-                >
-                  <span className="text-3xl">🐞</span>
-                  <div>
-                    <h5 className="font-black text-[9px] text-slate-800 leading-none">Level 3: Debugging</h5>
-                    <p className="text-[7.5px] text-pink-600 font-black mt-1.5 uppercase">Klaim +25 ⭐</p>
-                  </div>
-                </div>
+                  {detectiveStage === 2 && (
+                    <div className="grid grid-cols-1 gap-2">
+                      <button
+                        onClick={() => handleDetectiveOption(2, "Tolak! Alamat rumah dan nama sekolah adalah privasi sensitif. Saya tidak mau membagikannya!", true)}
+                        className="bg-slate-50 hover:bg-emerald-50 hover:text-emerald-700 text-slate-600 font-black text-[8.5px] p-2.5 rounded-xl border border-slate-200 text-left active:scale-98 transition-all"
+                      >
+                        🟢 A. Tolak! Alamat rumah dan sekolah adalah data pribadi rahasia 🏠
+                      </button>
+                      <button
+                        onClick={() => handleDetectiveOption(2, "Nama sekolahku SD Harapan dan rumahku di Jalan Merpati Nomor 5. Tolong kirim robotnya ya!", false)}
+                        className="bg-slate-50 hover:bg-rose-50 hover:text-rose-700 text-slate-600 font-black text-[8.5px] p-2.5 rounded-xl border border-slate-200 text-left active:scale-98 transition-all"
+                      >
+                        🔴 B. Berikan alamat lengkap agar dikirimkan mainan robot gratis 📍
+                      </button>
+                    </div>
+                  )}
 
-                <div 
-                  onClick={() => {
-                    playTone(660, 'sine', 0.15);
-                    setStars(prev => prev + 30);
-                    confetti();
-                    speakText("Hebat! Gunakan AI secara aman dan etis!");
-                    setTutorMessage('Robo-Tutor: "Jawaban Tepat! Gunakan AI untuk belajar memecahkan masalah, bukan untuk menyontek! +30 Bintang!"');
-                  }}
-                  className="p-3.5 bg-purple-50 border-2 border-purple-200 rounded-3xl cursor-pointer hover:scale-103 active:scale-98 transition-all text-center space-y-2 shadow-sm"
-                >
-                  <span className="text-3xl">🔒</span>
-                  <div>
-                    <h5 className="font-black text-[9px] text-slate-800 leading-none">Level 4: Etika AI</h5>
-                    <p className="text-[7.5px] text-purple-600 font-black mt-1.5 uppercase">Klaim +30 ⭐</p>
-                  </div>
+                  {detectiveStage === 3 && (
+                    <div className="text-center p-2 bg-emerald-50 border border-emerald-100 rounded-2xl space-y-2">
+                      <span className="text-xl">🏆🥇</span>
+                      <p className="text-[8.5px] text-emerald-800 font-black">Luar biasa! Kamu bersikap bijak dan berhasil mengamankan informasimu!</p>
+                      <button
+                        onClick={() => setDetectiveStage(0)}
+                        className="bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[8.5px] py-1.5 px-4 rounded-xl cursor-pointer"
+                      >
+                        Ulangi Ujian 🔄
+                      </button>
+                    </div>
+                  )}
+
+                  {detectiveStage === 4 && (
+                    <div className="text-center p-2 bg-rose-50 border border-rose-100 rounded-2xl space-y-2 animate-pulse">
+                      <span className="text-xl">⚠️🚨</span>
+                      <p className="text-[8.5px] text-rose-800 font-black">Hati-hati! Penipu berhasil mencuri datamu. Ayo pelajari lagi.</p>
+                      <button
+                        onClick={startDetectiveGame}
+                        className="bg-rose-500 hover:bg-rose-600 text-white font-black text-[8.5px] py-1.5 px-4 rounded-xl cursor-pointer"
+                      >
+                        Coba Lagi 🔄
+                      </button>
+                    </div>
+                  )}
                 </div>
-              </div>
+              )}
             </div>
           )}
 
