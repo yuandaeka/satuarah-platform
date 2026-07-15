@@ -88,68 +88,7 @@ export default function Home({
         </div>
       </div>
 
-      {/* SECTION 2: PILIH KELAS BELAJAR (REGULER vs ABK) */}
-      <div className="space-y-3">
-        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Pilih Kelas Pembelajaran:</h4>
-        
-        {/* Kelas Reguler Card */}
-        <div 
-          onClick={() => {
-            confetti();
-            speakText("Memasuki Kelas Reguler Koding.");
-            setSelectedMode('reguler');
-          }}
-          className="bubbly-card rounded-3xl p-5 border-2 hover:border-emerald-400 bg-gradient-to-r from-emerald-500 to-teal-600 text-white cursor-pointer transform hover:-translate-y-1 transition-all duration-300 relative overflow-hidden group shadow-md"
-        >
-          <div className="absolute right-4 top-2 text-7xl opacity-10 select-none font-bold group-hover:scale-110 transition-transform">🎓</div>
-          <div className="flex items-start gap-3.5 relative z-10">
-            <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center text-2xl border border-white/20 flex-shrink-0">
-              🎓
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <h5 className="font-black text-sm uppercase tracking-wide">Kelas Reguler</h5>
-                <span className="bg-white/25 text-white text-[7px] font-extrabold px-2 py-0.5 rounded-full uppercase">Siswa Umum</span>
-              </div>
-              <p className="text-[9.5px] text-emerald-50/90 leading-relaxed font-semibold">
-                Belajar logika algoritma koding melalui visual game blok interaktif dan kuis kecerdasan buatan (AI) yang menyenangkan.
-              </p>
-              <div className="pt-1.5 flex items-center gap-1 text-[8.5px] font-black text-yellow-300 group-hover:translate-x-1 transition-transform">
-                <span>Masuk Kelas Sekarang</span> <span>&rarr;</span>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        {/* Kelas ABK Card */}
-        <div 
-          onClick={() => {
-            confetti();
-            speakText("Membuka pilihan mode belajar khusus untuk anak berkebutuhan khusus.");
-            setCurrentTab('belajar');
-          }}
-          className="bubbly-card rounded-3xl p-5 border-2 hover:border-purple-400 bg-gradient-to-r from-purple-500 to-indigo-600 text-white cursor-pointer transform hover:-translate-y-1 transition-all duration-300 relative overflow-hidden group shadow-md"
-        >
-          <div className="absolute right-4 top-2 text-7xl opacity-10 select-none font-bold group-hover:scale-110 transition-transform">🧩</div>
-          <div className="flex items-start gap-3.5 relative z-10">
-            <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center text-2xl border border-white/20 flex-shrink-0">
-              🧩
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <h5 className="font-black text-sm uppercase tracking-wide">Kelas Inspirasi ABK</h5>
-                <span className="bg-white/25 text-white text-[7px] font-extrabold px-2 py-0.5 rounded-full uppercase">Kebutuhan Khusus</span>
-              </div>
-              <p className="text-[9.5px] text-purple-50/90 leading-relaxed font-semibold">
-                Pembelajaran koding & AI adaptif yang disesuaikan khusus untuk penyandang disleksia, ADHD, tunarungu, dan tunanetra.
-              </p>
-              <div className="pt-1.5 flex items-center gap-1 text-[8.5px] font-black text-yellow-300 group-hover:translate-x-1 transition-transform">
-                <span>Pilih Mode Belajar</span> <span>&rarr;</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* AI advisor insight card */}
       <div className="bubbly-card rounded-3xl p-4 bg-emerald-50/40 border border-emerald-100 flex items-start gap-3">
