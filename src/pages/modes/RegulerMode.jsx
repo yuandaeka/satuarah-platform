@@ -32,6 +32,7 @@ export default function RegulerMode({
 }) {
   // Tabs for 'praktik' submode: 'coding', 'ai', 'tantangan', 'tutor'
   const [activeTab, setActiveTab] = useState('coding');
+  const [modulPage, setModulPage] = useState(1);
   
   // Game & Progress state
   const [stars, setStars] = useState(200);
@@ -410,6 +411,27 @@ export default function RegulerMode({
                 </p>
               </div>
             </button>
+
+            {/* 4. Modul Mode (Digital Book) */}
+            <button
+              onClick={() => {
+                playTone(520, 'sine', 0.12);
+                setRegulerSubMode('modul');
+                setModulPage(1);
+                speakText("Gaya Modul diaktifkan. Bacalah buku digital interaktif berikut ini!");
+              }}
+              className="bubbly-card p-4 rounded-3xl text-left border-2 border-amber-100 hover:border-amber-400 active:scale-98 transition-all flex items-center gap-3.5 group cursor-pointer bg-white"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-2xl group-hover:scale-105 transition-transform flex-shrink-0">
+                📖
+              </div>
+              <div className="space-y-0.5">
+                <h5 className="font-black text-xs text-slate-800">📖 GAYA MODUL (Buku Digital)</h5>
+                <p className="text-[8.5px] text-slate-400 font-semibold leading-relaxed">
+                  E-book interaktif flip-page yang bersih, berisi teks materi standar, glosarium, dan rangkuman Bab.
+                </p>
+              </div>
+            </button>
           </div>
         </div>
       ) : regulerSubMode === 'visual' ? (
@@ -608,7 +630,7 @@ export default function RegulerMode({
             Pilih Gaya Belajar Lain &larr;
           </button>
         </div>
-      ) : (
+      ) : regulerSubMode === 'praktik' ? (
         /* ============================================================== */
         /* SUB-MODE C: GAYA PRAKTIK (GAME LABIRIN & LATIH MODEL AI) */
         /* ============================================================== */
@@ -1061,6 +1083,97 @@ export default function RegulerMode({
               </form>
             </div>
           )}
+
+          <button
+            onClick={() => { setRegulerSubMode(null); }}
+            className="w-full bg-slate-100 text-slate-600 text-[9px] font-black py-2.5 rounded-xl uppercase tracking-wider mt-4 border border-slate-200"
+          >
+            Pilih Gaya Belajar Lain &larr;
+          </button>
+        </div>
+      ) : (
+        /* ============================================================== */
+        /* SUB-MODE D: GAYA MODUL (DIGITAL BOOK) */
+        /* ============================================================== */
+        <div className="space-y-4 animate-fadeIn">
+          <div className="bubbly-card p-5 rounded-3xl bg-[#fffbeb] border-2 border-amber-200 text-slate-800 space-y-4 shadow-md min-h-[320px] flex flex-col">
+            <div className="flex justify-between items-center border-b border-amber-200 pb-2">
+              <h4 className="font-black text-xs text-amber-800">📖 E-Book Interaktif Koding & AI</h4>
+              <span className="text-[8.5px] font-black text-amber-600">Halaman {modulPage} dari 4</span>
+            </div>
+
+            {/* Book Pages */}
+            <div className="flex-1 space-y-2.5 py-2">
+              {modulPage === 1 && (
+                <div className="space-y-2 animate-fadeIn text-left">
+                  <h5 className="font-black text-xs text-slate-800">Bab 1: Mengenal Algoritma Koding</h5>
+                  <p className="text-[9.5px] font-semibold text-slate-600 leading-relaxed">
+                    Algoritma adalah urutan langkah-langkah logis untuk menyelesaikan suatu masalah. Saat menulis koding, kita memberi instruksi teratur agar komputer bergerak sesuai keinginan kita, seperti menuntun robot melewati labirin rintangan.
+                  </p>
+                  <div className="bg-amber-100/50 p-2.5 rounded-xl border border-amber-200 mt-2">
+                    <span className="text-[8px] font-black text-amber-700 block uppercase">💡 Tips Robot Maze:</span>
+                    <p className="text-[8px] font-bold text-slate-500">Urutan langkah (Maju, Kanan, Kiri) sangat penting. Salah satu langkah saja bisa membuat robot menabrak tembok rintangan!</p>
+                  </div>
+                </div>
+              )}
+
+              {modulPage === 2 && (
+                <div className="space-y-2 animate-fadeIn text-left">
+                  <h5 className="font-black text-xs text-slate-800">Bab 2: Menjaga Keamanan Data</h5>
+                  <p className="text-[9.5px] font-semibold text-slate-600 leading-relaxed">
+                    Keamanan data cilik berpusat pada perlindungan kata sandi (password) dan data pribadi sensitif seperti alamat rumah, nama sekolah, dan nomor telepon. Jangan pernah membagikan kunci rahasia ini demi iming-iming diamond game gratis!
+                  </p>
+                  <div className="bg-amber-100/50 p-2.5 rounded-xl border border-amber-200 mt-2">
+                    <span className="text-[8px] font-black text-amber-700 block uppercase">🔑 Ingat Selalu:</span>
+                    <p className="text-[8px] font-bold text-slate-500">Mr. Shadow di internet sering menyamar menjadi orang baik untuk membujukmu membocorkan kata sandimu.</p>
+                  </div>
+                </div>
+              )}
+
+              {modulPage === 3 && (
+                <div className="space-y-2 animate-fadeIn text-left">
+                  <h5 className="font-black text-xs text-slate-800">Bab 3: Klasifikasi & Pola AI</h5>
+                  <p className="text-[9.5px] font-semibold text-slate-600 leading-relaxed">
+                    Kecerdasan Buatan (AI) dilatih menggunakan kumpulan contoh data (Data Training). Model AI mencocokkan kemiripan pola gambar apel 🍎 atau jeruk 🍊 untuk bisa memilah jenis buah baru secara otomatis.
+                  </p>
+                  <div className="bg-amber-100/50 p-2.5 rounded-xl border border-amber-200 mt-2">
+                    <span className="text-[8px] font-black text-amber-700 block uppercase">⚠️ Data Kotor:</span>
+                    <p className="text-[8px] font-bold text-slate-500">Jika data latih yang dimasukkan salah atau kotor, tebakan model AI akan menurun akurasinya!</p>
+                  </div>
+                </div>
+              )}
+
+              {modulPage === 4 && (
+                <div className="space-y-2 animate-fadeIn text-left">
+                  <h5 className="font-black text-xs text-slate-800">📖 Glosarium & Istilah Penting</h5>
+                  <div className="grid grid-cols-1 gap-2 text-[8.5px] font-bold text-slate-600">
+                    <div><b>1. Algoritma:</b> Urutan instruksi logis untuk memecahkan masalah.</div>
+                    <div><b>2. Data Training:</b> Contoh data (gambar/teks) untuk melatih kecerdasan AI.</div>
+                    <div><b>3. Privasi:</b> Hak pribadi untuk menjaga data sensitif dari orang asing.</div>
+                    <div><b>4. Debugging:</b> Proses mencari dan memperbaiki kesalahan pada baris kode.</div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* E-Book Navigation */}
+            <div className="flex justify-between items-center bg-white/70 p-2 rounded-2xl border border-amber-200/60 shadow-sm">
+              <button 
+                onClick={() => { playTone(580, 'sine', 0.05); setModulPage(prev => Math.max(1, prev - 1)); }}
+                disabled={modulPage === 1}
+                className="bg-white hover:bg-slate-50 text-slate-600 px-3.5 py-1.5 rounded-xl text-[9px] font-black border border-slate-200 disabled:opacity-40"
+              >
+                &larr; Halaman Kiri
+              </button>
+              <button 
+                onClick={() => { playTone(580, 'sine', 0.05); setModulPage(prev => Math.min(4, prev + 1)); }}
+                disabled={modulPage === 4}
+                className="bg-amber-500 hover:bg-amber-600 text-white px-3.5 py-1.5 rounded-xl text-[9px] font-black border-b-3 border-amber-700 disabled:opacity-40"
+              >
+                Halaman Kanan &rarr;
+              </button>
+            </div>
+          </div>
 
           <button
             onClick={() => { setRegulerSubMode(null); }}
