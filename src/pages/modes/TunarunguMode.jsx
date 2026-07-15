@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
+import ABKAdaptiveView from './ABKAdaptiveView';
 
 export default function TunarunguMode({
   tunarunguComicPage,
@@ -9,7 +10,8 @@ export default function TunarunguMode({
   playTone,
   confetti: globalConfetti,
   triggerBadgeMinting,
-  setSelectedMode
+  setSelectedMode,
+  speakText
 }) {
   // --- States for the interactive Dashboard ---
   const [crystalCount, setCrystalCount] = useState(12);
@@ -142,7 +144,13 @@ export default function TunarunguMode({
   };
 
   return (
-    <div className="planet-isyarat-dashboard">
+    <ABKAdaptiveView
+      modeName="Tunarungu"
+      speakText={speakText}
+      triggerBadgeMinting={triggerBadgeMinting}
+      setSelectedMode={setSelectedMode}
+      renderPraktik={() => (
+        <div className="planet-isyarat-dashboard">
       <style dangerouslySetInnerHTML={{ __html: `
         .planet-isyarat-dashboard {
           --space-bg: #07091e;
@@ -1136,5 +1144,7 @@ export default function TunarunguMode({
         </div>
       )}
     </div>
+      )}
+    />
   );
 }

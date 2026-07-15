@@ -109,8 +109,8 @@ export default function App() {
     disleksia: false
   });
   const [blockchainLogs, setBlockchainLogs] = useState([
-    { timestamp: '10:04', text: 'Wallet 0x9e8a...3fc1 initialized' },
-    { timestamp: '10:15', text: 'Minted Soulbound Token #384: Reguler Badge' }
+    { timestamp: '10:04', text: 'Sistem Belajar SatuArah Siap' },
+    { timestamp: '10:15', text: 'Berhasil Mendapatkan Lencana: Lencana Reguler' }
   ]);
   const [activeBadgeToMint, setActiveBadgeToMint] = useState(null);
   const [mintingStatusText, setMintingStatusText] = useState('');
@@ -125,7 +125,7 @@ export default function App() {
   const [chatbotTyping, setChatbotTyping] = useState(false);
 
   // Speech Synthesizer reference with Google TTS fallback
-  const speakText = useCallback((text, forceMode = false) => {
+  const speakText = useCallback((text, forceMode = false, rate = 1.0) => {
     const playTtsFallback = (txt) => {
       try {
         if (window.activeFallbackAudio) {
@@ -134,6 +134,11 @@ export default function App() {
         const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=id&client=tw-ob&q=${encodeURIComponent(txt)}`;
         const audio = new Audio(url);
         window.activeFallbackAudio = audio;
+        
+        // Apply playbackRate to fallback audio if supported
+        if (audio) {
+          audio.playbackRate = rate;
+        }
         
         audio.onplay = () => {
           if (selectedMode === 'tunanetra' || forceMode) {
@@ -160,17 +165,15 @@ export default function App() {
       try {
         window.speechSynthesis.cancel(); // Stop any ongoing speech
         
-        // Resume in case it was paused
         if (window.speechSynthesis.paused) {
           window.speechSynthesis.resume();
         }
         
-        // Use setTimeout to bypass Chrome's synchronous cancel-speak bug
         setTimeout(() => {
           const utterance = new SpeechSynthesisUtterance(text);
           utterance.lang = 'id-ID';
+          utterance.rate = rate;
           
-          // Look for Indonesian voice specifically
           const voices = window.speechSynthesis.getVoices();
           const idVoice = voices.find(v => v.lang.includes('id-ID') || v.name.toLowerCase().includes('indonesian') || v.lang.startsWith('id'));
           if (idVoice) utterance.voice = idVoice;
@@ -190,7 +193,6 @@ export default function App() {
           };
           window.speechSynthesis.speak(utterance);
 
-          // Check if speech fails silently to start
           setTimeout(() => {
             if (!window.speechSynthesis.speaking && !window.speechSynthesis.pending && (selectedMode === 'tunanetra' || forceMode)) {
               console.warn("speechSynthesis did not start, playing fallback...");
@@ -265,7 +267,7 @@ export default function App() {
         }
       }, 1000);
       // Play TTS voice of the lyrics
-      speakText("Ayo kita kawan mengenal si Mars. Planet nomor empat, merah warnanya. Mengorbit Matahari bersama Bumi. Kaya besi oksida, itu tanahnya!");
+      speakText("Koding itu asyik, susun blok satu per satu. Robot pun berjalan, ikuti instruksimu. Kecerdasan Artifisial, belajar dari data. Belajar koding cilik, kita cerdas bersama!");
     } else {
       clearInterval(karaokeIntervalRef.current);
       setKaraokeLyricIndex(-1);
@@ -1113,14 +1115,13 @@ export default function App() {
   };
 
   const executeMinting = () => {
-    setMintingStatusText('Membuat Bukti Kompetensi Kriptografi (Proof-of-Competency)...');
+    setMintingStatusText('Memproses Penyimpanan Kompetensi...');
     
     setTimeout(() => {
-      setMintingStatusText('Menyiapkan Transaksi Soulbound Token (SBT)...');
+      setMintingStatusText('Menyiapkan Berkas Lencana Baru...');
       
       setTimeout(() => {
-        const hash = '0x' + Math.random().toString(16).substring(2, 10) + '...' + Math.random().toString(16).substring(2, 6);
-        setMintingStatusText(`Sukses! Minting Berhasil. Hash Transaksi: ${hash}`);
+        setMintingStatusText('Sukses! Lencana Berhasil Disimpan.');
         
         setTimeout(() => {
           setIsMintingModalOpen(false);
@@ -1132,13 +1133,13 @@ export default function App() {
           
           setBlockchainLogs(prev => [
             ...prev,
-            { timestamp, text: `Minted Soulbound Token: Lencana ${activeBadgeToMint.toUpperCase()}` }
+            { timestamp, text: `Berhasil Memperoleh Lencana: Lencana ${activeBadgeToMint.toUpperCase()}` }
           ]);
           playTone(523.25, 'sine', 0.15);
           setTimeout(() => playTone(659.25, 'sine', 0.25), 150);
           
           if (selectedMode === 'tunanetra') {
-            speakText("Selamat! Lencana kompetensi baru berhasil dicetak ke dompet digital anda di blockchain.", true);
+            speakText("Selamat! Lencana kompetensi baru berhasil disimpan ke profil belajarmu.", true);
           }
           confetti();
           setActiveBadgeToMint(null);
@@ -1159,7 +1160,7 @@ export default function App() {
 
     setTimeout(() => {
       setChatbotTyping(false);
-      let reply = 'Maaf, saya tidak mengerti pertanyaan tersebut. Coba tanyakan seputar tips mengajar disleksia, ADHD, tunanetra, atau lencana Soulbound Token.';
+      let reply = 'Maaf, saya tidak mengerti pertanyaan tersebut. Coba tanyakan seputar tips mengajar disleksia, ADHD, tunanetra, atau Lencana Belajar.';
       
       const query = userMessage.toLowerCase();
       if (query.includes('adhd') || query.includes('fokus')) {
@@ -1177,8 +1178,8 @@ export default function App() {
 1. Berbasis media audio storytelling yang interaktif.
 2. Maksimalkan umpan balik taktil dan petunjuk verbal yang detail.
 3. Gunakan screen reader dan voice user interface (VUI).`;
-      } else if (query.includes('sbt') || query.includes('token') || query.includes('blockchain')) {
-        reply = 'Soulbound Token (SBT) adalah token kriptografi non-transferabel yang membuktikan pencapaian kompetensi belajar siswa secara permanen di blockchain, aman, dan tidak dapat dimanipulasi.';
+      } else if (query.includes('lencana') || query.includes('sertifikat') || query.includes('sbt') || query.includes('token') || query.includes('blockchain')) {
+        reply = 'Lencana Belajar SatuArah adalah penghargaan digital aman yang mencatat setiap modul koding dan AI yang berhasil diselesaikan oleh putra-putri Anda sebagai bukti nyata kompetensi logika anak.';
       } else if (query.includes('halo') || query.includes('siapa')) {
         reply = 'Halo! Saya adalah AI Advisor SatuArah. Saya siap memberikan rekomendasi kurikulum dan metode belajar inklusif untuk putra-putri Anda.';
       }
@@ -1242,43 +1243,59 @@ export default function App() {
         {/* VIEW 1: SPLASH & LOGIN CONTAINER */}
         {/* ============================================================== */}
         {!isLoggedIn ? (
-          <div className="flex-1 flex flex-col justify-center p-6 bg-gradient-to-b from-white to-emerald-50/50">
-            <div className="text-center mb-6">
-              <div className="w-20 h-20 bg-emerald-500 rounded-3xl mx-auto flex items-center justify-center text-white text-4xl shadow-md mb-4 animate-float border-3 border-emerald-200">
-                🌍
+          <div className="flex-1 flex flex-col justify-center p-6 bg-gradient-to-b from-emerald-50/60 via-white to-teal-50/20 relative overflow-hidden">
+            {/* Ambient Background Glows */}
+            <div className="absolute -top-12 -left-12 w-28 h-28 rounded-full bg-emerald-300/20 blur-xl pointer-events-none"></div>
+            <div className="absolute -bottom-16 -right-16 w-36 h-36 rounded-full bg-teal-400/20 blur-2xl pointer-events-none"></div>
+            <div className="absolute top-1/3 right-4 w-12 h-12 rounded-full bg-indigo-300/10 blur-lg pointer-events-none"></div>
+
+            <div className="text-center mb-6 relative z-10">
+              <div className="w-20 h-20 bg-gradient-to-br from-emerald-400 to-teal-600 rounded-3xl mx-auto flex items-center justify-center text-white text-4xl shadow-lg mb-4 animate-float border-2 border-white/50 transform hover:scale-105 transition-transform duration-300">
+                💻
               </div>
-              <h2 className="text-2xl font-black text-emerald-800 leading-tight">SatuArah Platform</h2>
-              <p className="text-xs text-slate-500 font-semibold mt-1 max-w-xs mx-auto">
-                Ruang belajar interaktif adaptif ramah disabilitas dan inklusi masa depan.
-              </p>
+              <h2 className="text-[22px] font-black tracking-tight leading-tight bg-gradient-to-r from-emerald-600 via-teal-500 to-indigo-600 bg-clip-text text-transparent">
+                SatuArah Koding & AI
+              </h2>
+              <div className="mt-2.5 bg-white/70 backdrop-blur-sm border border-emerald-100/50 rounded-2xl py-2 px-3 shadow-sm inline-block">
+                <p className="text-[9.5px] text-slate-600 font-bold leading-normal">
+                  💡 Ruang belajar koding & kecerdasan buatan adaptif ramah disabilitas & anak reguler.
+                </p>
+              </div>
             </div>
 
-            <form onSubmit={handleLoginSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wide">Nama Penjelajah Cilik:</label>
-                <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="w-full bg-white border-2 border-emerald-200 focus:border-emerald-500 outline-none rounded-2xl py-3 px-4 text-xs font-bold text-slate-800 transition-all shadow-sm"
-                  placeholder="Masukkan nama..."
-                  required
-                />
+            <form onSubmit={handleLoginSubmit} className="space-y-4 relative z-10">
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
+                  Nama Coder / AI Explorer Cilik:
+                </label>
+                <div className="relative">
+                  <span className="absolute left-4 top-3 text-slate-400 text-sm">👤</span>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="w-full bg-white/80 backdrop-blur-sm border-2 border-emerald-100 hover:border-emerald-300 focus:border-emerald-500 focus:bg-white outline-none rounded-2xl py-3 pl-10 pr-4 text-xs font-black text-slate-800 transition-all shadow-sm focus:shadow-emerald-100 focus:shadow-md"
+                    placeholder="Masukkan nama kerenmu..."
+                    required
+                  />
+                </div>
               </div>
 
               {/* Avatar Selector */}
-              <div>
-                <label className="block text-xs font-bold text-slate-600 mb-2 uppercase tracking-wide">Pilih Avatar:</label>
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
+                  Pilih Avatar Jagoanmu:
+                </label>
                 <div className="grid grid-cols-5 gap-2">
                   {['🚀', '🦖', '🤖', '🦊', '🦁'].map((av) => (
                     <button
                       key={av}
                       type="button"
-                      onClick={() => setSelectedAvatar(av)}
-                      className={`py-3 rounded-2xl text-2xl border-2 transition-all ${
+                      onClick={() => { playTone(580, 'sine', 0.1); setSelectedAvatar(av); }}
+                      className={`py-3 rounded-2xl text-2xl border-2 transition-all duration-200 bg-white ${
                         selectedAvatar === av
-                          ? 'border-emerald-50 scale-110 shadow-sm'
-                          : 'border-slate-200 bg-white hover:border-emerald-300'
+                          ? 'border-emerald-500 scale-110 shadow-md shadow-emerald-100 bg-gradient-to-b from-white to-emerald-50/50'
+                          : 'border-slate-100 hover:border-emerald-200 hover:scale-105 active:scale-95'
                       }`}
                     >
                       {av}
@@ -1289,9 +1306,10 @@ export default function App() {
 
               <button
                 type="submit"
-                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black py-4 px-6 rounded-2.5xl text-xs uppercase btn-bubbly transition-all shadow-md cursor-pointer mt-4"
+                onClick={() => playTone(660, 'sine', 0.15)}
+                className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black py-3.5 px-6 rounded-2.5xl text-xs uppercase transition-all shadow-lg hover:shadow-emerald-200 active:scale-98 cursor-pointer mt-5 border-b-4 border-teal-800"
               >
-                Mulai Belajar &rarr;
+                Mulai Belajar Koding &rarr;
               </button>
             </form>
           </div>
@@ -1311,6 +1329,8 @@ export default function App() {
                 renderedDuration={renderedDuration}
                 walletTokens={walletTokens}
                 speakText={speakText}
+                setSelectedMode={setSelectedMode}
+                setCurrentTab={setCurrentTab}
               />
             )}
             {/* -------------------------------------------------------- */}
@@ -1336,6 +1356,8 @@ export default function App() {
                 setKaraokePlaying={setKaraokePlaying}
                 karaokeLyricIndex={karaokeLyricIndex}
                 triggerBadgeMinting={triggerBadgeMinting}
+                speakText={speakText}
+                setSelectedMode={setSelectedMode}
               />
             )}
             {/* SUB-VIEW B.2: MODE ADHD */}
@@ -1365,6 +1387,8 @@ export default function App() {
                 handleAdhdBoardTouchMove={handleAdhdBoardTouchMove}
                 handleAdhdBoardTouchStart={handleAdhdBoardTouchStart}
                 handleAdhdBoardTouchEnd={handleAdhdBoardTouchEnd}
+                speakText={speakText}
+                triggerBadgeMinting={triggerBadgeMinting}
               />
             )}
             
@@ -1378,6 +1402,8 @@ export default function App() {
                 playTone={playTone}
                 confetti={confetti}
                 triggerBadgeMinting={triggerBadgeMinting}
+                speakText={speakText}
+                setSelectedMode={setSelectedMode}
               />
             )}
             
@@ -1396,6 +1422,7 @@ export default function App() {
                 startTunanetraMic={startTunanetraMic}
                 TUNANETRA_STORIES={TUNANETRA_STORIES}
                 setSelectedMode={setSelectedMode}
+                triggerBadgeMinting={triggerBadgeMinting}
               />
             )}
             
@@ -1424,6 +1451,7 @@ export default function App() {
                 speakText={speakText}
                 stopSpeaking={stopSpeaking}
                 triggerBadgeMinting={triggerBadgeMinting}
+                setSelectedMode={setSelectedMode}
               />
             )}
             
@@ -1507,10 +1535,10 @@ export default function App() {
                 💡 Disleksia
               </button>
               <button
-                onClick={() => { setChatInput('Apa itu SBT?'); }}
+                onClick={() => { setChatInput('Apa itu Lencana Belajar?'); }}
                 className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full text-[8px] font-black inline-block"
               >
-                🪙 Blockchain SBT
+                🏆 Lencana Belajar
               </button>
             </div>
 
@@ -1585,7 +1613,35 @@ export default function App() {
           </footer>
         )}
 
-
+        {/* NEW LENCANA MODAL (UNLOCKED BADGE REWARD) */}
+        {activeBadgeToMint && (
+          <div className="absolute inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-6 backdrop-blur-sm">
+            <div className="bg-white rounded-3xl p-6 w-full max-w-[280px] text-center border-3 border-emerald-400 space-y-4 shadow-2xl animate-float">
+              <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-3xl mx-auto flex items-center justify-center text-4xl shadow-inner border border-emerald-200">
+                {activeBadgeToMint === 'reguler' ? '🎓' : activeBadgeToMint === 'adhd' ? '🎯' : activeBadgeToMint === 'tunarungu' ? '🤟' : activeBadgeToMint === 'tunanetra' ? '🎧' : '✏️'}
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-black text-slate-800 text-sm uppercase">🏆 Lencana Baru!</h3>
+                <p className="text-[10px] text-slate-500 font-semibold leading-relaxed">
+                  Kamu luar biasa! Berhasil menyelesaikan modul pembelajaran {activeBadgeToMint.toUpperCase()} cilik.
+                </p>
+              </div>
+              {isMintingModalOpen ? (
+                <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-ping"></span>
+                  <span className="text-[8.5px] font-black text-slate-600">{mintingStatusText}</span>
+                </div>
+              ) : (
+                <button
+                  onClick={executeMinting}
+                  className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-black py-3.5 rounded-2.5xl text-xs uppercase shadow-md active:scale-95 transition-all cursor-pointer border-b-4 border-teal-800"
+                >
+                  Simpan Lencana Belajar
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
       </div>
     </div>

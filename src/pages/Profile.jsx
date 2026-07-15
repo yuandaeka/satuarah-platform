@@ -17,7 +17,7 @@ export default function Profile({
           {selectedAvatar}
         </div>
         <h3 className="font-extrabold text-sm text-slate-800">{username}</h3>
-        <p className="text-[9px] text-slate-400 font-bold mt-0.5">ID: 0x9e8abee3fcd12</p>
+        <p className="text-[9px] text-slate-400 font-bold mt-0.5">ID Siswa: SA-2026-9832</p>
 
         <button
           onClick={() => { setIsLoggedIn(false); setSelectedMode(null); stopSpeaking(); }}
@@ -27,10 +27,10 @@ export default function Profile({
         </button>
       </div>
 
-      {/* Soulbound Token Badges Grid */}
+      {/* Badges Grid */}
       <div className="bubbly-card p-4 rounded-3xl space-y-3">
         <h4 className="font-black text-[10px] text-slate-700 uppercase tracking-wider flex items-center gap-1">
-          🪙 Lencana Soulbound Token (SBT) Terverifikasi
+          🏆 Lencana Prestasi Koding Cilik
         </h4>
         
         <div className="grid grid-cols-5 gap-2">
@@ -76,23 +76,6 @@ export default function Profile({
         </div>
       </div>
 
-      {/* Blockchain Trust Ledger Console */}
-      <div className="bubbly-card p-4 rounded-3xl bg-slate-900 border-slate-800 text-slate-300">
-        <div className="flex justify-between items-center border-b border-slate-800 pb-2 mb-2">
-          <span className="text-[9px] font-black text-slate-400 flex items-center gap-1">
-            🖥️ Blockchain Ledger Audit Logs
-          </span>
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
-        </div>
-
-        <div className="space-y-1.5 max-h-[90px] overflow-y-auto font-mono text-[8px] leading-tight text-emerald-300">
-          {blockchainLogs.map((log, index) => (
-            <p key={index}>
-              [{log.timestamp}] {log.text}
-            </p>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

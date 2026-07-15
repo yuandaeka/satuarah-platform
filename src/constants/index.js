@@ -1,25 +1,25 @@
 export const REGULER_LYRICS = [
-  { time: 0, text: "Bumi planet kita, ketiga dari surya... 🎶" },
-  { time: 3, text: "Tempat tinggal kita, ada air udara... 🌍" },
-  { time: 7, text: "Berputar-putar, kelilingi mentari... ☀️" },
-  { time: 11, text: "Indah dan megah, ciptaan Tuhan ini... 🎵" }
+  { time: 0, text: "Koding itu asyik, susun blok satu per satu... 🎶" },
+  { time: 3, text: "Robot pun berjalan, ikuti instruksimu... 🤖" },
+  { time: 7, text: "Kecerdasan Artifisial, belajar dari data... 🧠" },
+  { time: 11, text: "Belajar koding cilik, kita cerdas bersama... 🎵" }
 ];
 
 export const TUNANETRA_STORIES = [
   {
-    title: "Mengenal Bumi",
-    audioText: "Halo penjelajah hebat! Bayangkan kamu sedang melayang di ruang angkasa yang sangat sunyi. Di depanmu, ada sebuah bola raksasa berwarna biru yang sangat sejuk. Itu adalah Bumi, rumah kita. Dengarkan suara gemercik airnya... Bumi ini berputar pelan mengitari matahari yang hangat...",
-    question: "Apakah warna dari bola raksasa yang menjadi rumah kita?"
+    title: "Mengenal Robot Koding",
+    audioText: "Halo penjelajah hebat! Selamat datang di Planet Suara. Di sini, kita akan belajar koding dan kecerdasan buatan. Ada robot pintar bernama Robo-Tutor yang dijalankan dengan urutan perintah koding. Koding membantu robot untuk berjalan maju mencapai tujuannya dengan aman.",
+    question: "Apakah nama robot pintar yang dijalankan menggunakan koding?"
   }
 ];
 
 export const INITIAL_PLANET_CARDS = [
-  { id: 0, emoji: '🔴', label: 'Mars', isPlanet: true, factSuccess: 'Keren! Mars adalah planet keempat dari Matahari.', factFail: 'Ups! Mars adalah planet berbatu, bukan bintang atau objek lainnya.' },
-  { id: 1, emoji: '🪐', label: 'Jupiter', isPlanet: true, factSuccess: 'Luar biasa! Jupiter adalah planet terbesar di Tata Surya.', factFail: 'Ups! Jupiter adalah planet gas raksasa.' },
-  { id: 2, emoji: '💨', label: 'Besi Oksida', isPlanet: false, factSuccess: 'Tepat! Besi Oksida adalah senyawa kimia penyusun tanah Mars, bukan planet.', factFail: 'Besi Oksida adalah debu besi berkarat, bukan planet!' },
-  { id: 3, emoji: '☀️', label: 'Matahari', isPlanet: false, factSuccess: 'Benar! Matahari adalah Bintang induk di pusat Tata Surya.', factFail: 'Matahari adalah Bintang, bukan planet!' },
-  { id: 4, emoji: '🌋', label: 'Olympus Mons', isPlanet: false, factSuccess: 'Bagus! Olympus Mons adalah gunung berapi raksasa di Mars, bukan planet.', factFail: 'Olympus Mons adalah gunung berapi terbesar di Mars, bukan planet!' },
-  { id: 5, emoji: '🌍', label: 'Bumi', isPlanet: true, factSuccess: 'Hebat! Bumi adalah planet hunian kita yang kaya air dan oksigen.', factFail: 'Bumi adalah planet rumah kita!' },
-  { id: 6, emoji: '🪐', label: 'Saturnus', isPlanet: true, factSuccess: 'Luar biasa! Saturnus terkenal dengan cincin esnya yang indah.', factFail: 'Saturnus adalah planet gas raksasa dengan cincin!' },
-  { id: 7, emoji: '👽', label: 'Alien', isPlanet: false, factSuccess: 'Benar! Alien adalah makhluk hidup fiksi luar angkasa, bukan planet.', factFail: 'Alien adalah makhluk hidup rekaan, bukan planet!' },
+  { id: 0, emoji: '🤖', label: 'Robo-Tutor', isPlanet: true, factSuccess: 'Keren! Robo-Tutor adalah agen kecerdasan buatan.', factFail: 'Ups! Robo-Tutor adalah robot AI.' },
+  { id: 1, emoji: '💻', label: 'Komputer', isPlanet: true, factSuccess: 'Luar biasa! Komputer menjalankan instruksi koding kita.', factFail: 'Ups! Komputer adalah alat memproses data koding.' },
+  { id: 2, emoji: '💨', label: 'Besi Oksida', isPlanet: false, factSuccess: 'Tepat! Besi Oksida adalah senyawa kimia, bukan alat koding.', factFail: 'Besi Oksida adalah senyawa karat, bukan bagian koding!' },
+  { id: 3, emoji: '🧠', label: 'Model AI', isPlanet: true, factSuccess: 'Benar! Model AI belajar mengenali pola data gambar.', factFail: 'Model AI adalah otak pintar sistem cerdas!' },
+  { id: 4, emoji: '🌋', label: 'Gunung Berapi', isPlanet: false, factSuccess: 'Bagus! Gunung adalah fenomena alam, bukan alat teknologi.', factFail: 'Gunung berapi adalah alam, bukan bagian AI!' },
+  { id: 5, emoji: '🌍', label: 'Bumi', isPlanet: false, factSuccess: 'Hebat! Bumi adalah planet hunian kita, bukan alat koding.', factFail: 'Bumi adalah planet, bukan bagian AI!' },
+  { id: 6, emoji: '🪐', label: 'Saturnus', isPlanet: false, factSuccess: 'Luar biasa! Saturnus terkenal dengan cincin esnya, bukan alat koding.', factFail: 'Saturnus adalah planet cincin, bukan AI!' },
+  { id: 7, emoji: '👽', label: 'Alien', isPlanet: false, factSuccess: 'Benar! Alien adalah makhluk hidup fiksi luar angkasa, bukan teknologi.', factFail: 'Alien adalah makhluk hidup rekaan, bukan AI!' },
 ];

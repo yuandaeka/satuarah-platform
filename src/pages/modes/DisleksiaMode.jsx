@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import confetti from 'canvas-confetti';
+import ABKAdaptiveView from './ABKAdaptiveView';
 
 export default function DisleksiaMode({
   speakText,
   stopSpeaking,
   triggerBadgeMinting,
+  setSelectedMode
 }) {
   // --- Game States ---
   const [wordCount, setWordCount] = useState(36);
@@ -160,7 +162,13 @@ export default function DisleksiaMode({
   };
 
   return (
-    <div className="planet-kata-container">
+    <ABKAdaptiveView
+      modeName="Disleksia"
+      speakText={speakText}
+      triggerBadgeMinting={triggerBadgeMinting}
+      setSelectedMode={setSelectedMode}
+      renderPraktik={() => (
+        <div className="planet-kata-container">
       <style dangerouslySetInnerHTML={{ __html: `
         .planet-kata-container {
           --theme-bg: #1e1b4b;
@@ -803,5 +811,7 @@ export default function DisleksiaMode({
         </div>
       )}
     </div>
+      )}
+    />
   );
 }

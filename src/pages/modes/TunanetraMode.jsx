@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
+import ABKAdaptiveView from './ABKAdaptiveView';
 
 export default function TunanetraMode({
   isTunanetraNarrating,
@@ -13,7 +14,8 @@ export default function TunanetraMode({
   stopSpeaking,
   startTunanetraMic,
   TUNANETRA_STORIES,
-  setSelectedMode
+  setSelectedMode,
+  triggerBadgeMinting
 }) {
   // --- Game/Interface States ---
   const [activeTab, setActiveTab] = useState('main'); // 'main' | 'materi' | 'tebak' | 'kuis'
@@ -123,7 +125,13 @@ export default function TunanetraMode({
   };
 
   return (
-    <div className="planet-suara-container">
+    <ABKAdaptiveView
+      modeName="Tunanetra"
+      speakText={speakText}
+      triggerBadgeMinting={triggerBadgeMinting}
+      setSelectedMode={setSelectedMode}
+      renderPraktik={() => (
+        <div className="planet-suara-container">
       <style dangerouslySetInnerHTML={{ __html: `
         .planet-suara-container {
           --ps-bg: #0b071e;
@@ -780,5 +788,7 @@ export default function TunanetraMode({
         </button>
       </footer>
     </div>
+      )}
+    />
   );
 }

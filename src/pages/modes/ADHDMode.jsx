@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
+import ABKAdaptiveView from './ABKAdaptiveView';
 
 export default function ADHDMode({
   adhdScore,
@@ -25,7 +26,9 @@ export default function ADHDMode({
   handleAdhdBoardMouseUp,
   handleAdhdBoardTouchMove,
   handleAdhdBoardTouchStart,
-  handleAdhdBoardTouchEnd
+  handleAdhdBoardTouchEnd,
+  speakText,
+  triggerBadgeMinting
 }) {
   // --- Navigation & Content States ---
   const [activeTab, setActiveTab] = useState('main'); // 'main' | 'gameplay' | 'video' | 'misi' | 'energi'
@@ -158,7 +161,13 @@ export default function ADHDMode({
   };
 
   return (
-    <div className="planet-fokus-dashboard">
+    <ABKAdaptiveView
+      modeName="ADHD"
+      speakText={speakText}
+      triggerBadgeMinting={triggerBadgeMinting}
+      setSelectedMode={setSelectedMode}
+      renderPraktik={() => (
+        <div className="planet-fokus-dashboard">
       <style dangerouslySetInnerHTML={{ __html: `
         .planet-fokus-dashboard {
           --pf-bg: #06041a;
@@ -1055,5 +1064,7 @@ export default function ADHDMode({
         </>
       )}
     </div>
+      )}
+    />
   );
 }
