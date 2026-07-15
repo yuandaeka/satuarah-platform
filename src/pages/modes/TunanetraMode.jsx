@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 
 export default function TunanetraMode({
@@ -12,10 +12,11 @@ export default function TunanetraMode({
   speakText,
   stopSpeaking,
   startTunanetraMic,
-  TUNANETRA_STORIES
+  TUNANETRA_STORIES,
+  setSelectedMode
 }) {
   // --- Game/Interface States ---
-  const [activeTab, setActiveTab] = useState('main'); // 'main' | 'materi' | 'tebak' | 'kuis' | 'koleksi'
+  const [activeTab, setActiveTab] = useState('main'); // 'main' | 'materi' | 'tebak' | 'kuis'
   const [jejakCount, setJejakCount] = useState(12);
   const [selectedAnimalSound, setSelectedAnimalSound] = useState(null); // for 'tebak' game
   const [soundGuides, setSoundGuides] = useState({
@@ -26,13 +27,13 @@ export default function TunanetraMode({
     kelinci: false
   });
 
+  // Tap-to-read selections for screen reader logic
+  const [focusedId, setFocusedId] = useState(null);
+
   // Accessibility settings states
   const [speechRate, setSpeechRate] = useState('Normal');
   const [voiceType, setVoiceType] = useState('Suara Ramah');
   const [volume, setVolume] = useState(80);
-  const [musicOn, setMusicOn] = useState(true);
-  const [vibrateOn, setVibrateOn] = useState(true);
-  const [tutorialOn, setTutorialOn] = useState(true);
 
   // Sound generator helper
   const playBeep = (freq = 520, type = 'sine', duration = 0.15) => {
@@ -52,26 +53,50 @@ export default function TunanetraMode({
     }
   };
 
-  // Keyboard spacebar listener
-  React.useEffect(() => {
+  // Speak helper that adds beeps and manages speech
+  const announce = (text, freq = 520) => {
+    playBeep(freq, 'sine', 0.12);
+    speakText(text, true);
+  };
+
+  // Keyboard spacebar listener for repeating instructions
+  useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.code === 'Space') {
         e.preventDefault();
-        playBeep(440, 'sine', 0.1);
-        if (activeTab === 'materi') {
-          speakText("Hari ini kita belajar tentang hewan kelinci. Kelinci adalah hewan mamalia berbulu halus yang melompat cepat.", true);
-        } else if (activeTab === 'tebak') {
-          speakText("Aku mendengar suara burung dari arah kiri. Suara manakah itu?", true);
-        } else if (activeTab === 'kuis') {
-          speakText("Pertanyaan: Apa makanan kelinci? Tekan tombol mikrofon kuning untuk berbicara.", true);
-        } else {
-          speakText("Planet Suara diaktifkan. Gunakan tombol navigasi di atas untuk memulai penjelajahan suaramu.", true);
-        }
+        announce("Mengulang petunjuk saat ini.");
+        triggerCurrentContextGuide();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTab, speakText]);
+  }, [activeTab]);
+
+  const triggerCurrentContextGuide = () => {
+    if (activeTab === 'main') {
+      speakText("Kamu berada di Beranda Planet Suara. Ketuk salah satu dari empat Zona Belajar di layar untuk menjelajah. Setiap zona akan membacakan namanya saat diketuk sekali. Ketuk dua kali untuk membukanya.", true);
+    } else if (activeTab === 'materi') {
+      speakText("Hari ini kita belajar tentang kelinci. Kelinci adalah hewan mamalia berbulu halus yang melompat cepat. Ketuk tombol putar suara untuk mendengar penjelasan lengkap.", true);
+    } else if (activeTab === 'tebak') {
+      speakText("Pertanyaan tebak suara: Dengarkan suara burung dari arah kiri. Pilih satu dari tiga pilihan jawaban di layar. Ketuk sekali untuk mendengarkan, ketuk dua kali untuk menjawab.", true);
+    } else if (activeTab === 'kuis') {
+      speakText("Pertanyaan kuis: apa makanan kesukaan kelinci? Ketuk tombol mikrofon besar lalu ucapkan jawabanmu, atau pilih dari daftar opsi di bawah.", true);
+    }
+  };
+
+  // Accessibility selection helper for tap-to-read & double-tap to activate
+  const handleItemInteraction = (id, readText, actionCallback) => {
+    if (focusedId === id) {
+      // Double click -> Activate
+      playBeep(640, 'sine', 0.2);
+      setFocusedId(null);
+      actionCallback();
+    } else {
+      // Single click -> Highlight and Read
+      setFocusedId(id);
+      announce(readText, 480);
+    }
+  };
 
   // Quiz voice button click handler
   const handleMicrophoneClick = () => {
@@ -84,13 +109,26 @@ export default function TunanetraMode({
     }, 2800);
   };
 
+  const handleManualQuizOption = (ans) => {
+    if (ans === 'wortel') {
+      setJejakCount(prev => Math.min(50, prev + 2));
+      setSoundGuides(prev => ({ ...prev, kelinci: true }));
+      setTunanetraAnswerResult("Jawaban Benar! Kelinci sangat menyukai wortel.");
+      announce("Luar biasa! Jawabanmu benar, kelinci menyukai wortel. Kamu mendapatkan dua Jejak Suara baru.");
+      confetti({ particleCount: 40, origin: { y: 0.7 } });
+    } else {
+      setTunanetraAnswerResult("Belum Tepat. Coba pikirkan sayuran berwarna oranye.");
+      announce("Kurang tepat. Coba tebak lagi, sayuran berwarna oranye kesukaan kelinci.");
+    }
+  };
+
   return (
     <div className="planet-suara-container">
       <style dangerouslySetInnerHTML={{ __html: `
         .planet-suara-container {
           --ps-bg: #0b071e;
           --ps-primary: #a855f7;
-          --ps-secondary: #f59e0b;
+          --ps-secondary: #fbbf24;
           --ps-accent: #10b981;
           --ps-card: rgba(255, 255, 255, 0.05);
           --ps-text: #f3e8ff;
@@ -99,33 +137,77 @@ export default function TunanetraMode({
           background: radial-gradient(circle at center, #1b1248 0%, #060312 100%);
           color: var(--ps-text);
           border-radius: 28px;
-          padding: 18px;
+          padding: 16px;
           border: 3.5px solid var(--ps-primary);
           box-shadow: inset 0 0 35px rgba(0,0,0,0.8), 0 20px 40px rgba(0,0,0,0.4);
           position: relative;
+          width: 100%;
           min-height: 480px;
           display: flex;
           flex-direction: column;
-          overflow: hidden;
+          gap: 12px;
+          overflow-y: auto;
+          max-height: 800px;
         }
 
-        .ps-glow-overlay {
-          position: absolute;
-          width: 300px;
-          height: 300px;
-          background: radial-gradient(circle, rgba(168, 85, 247, 0.15) 0%, transparent 70%);
-          border-radius: 50%;
-          pointer-events: none;
-          top: -100px;
-          left: -50px;
-          z-index: 0;
+        /* Large Tap Targets for Blind Accessibility */
+        .ps-accessible-list {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          width: 100%;
+        }
+
+        .ps-accessible-card {
+          width: 100%;
+          background: rgba(255, 255, 255, 0.04);
+          border: 2px solid rgba(168, 85, 247, 0.2);
+          border-radius: 20px;
+          padding: 16px;
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          cursor: pointer;
+          transition: all 0.2s;
+          text-align: left;
+        }
+        .ps-accessible-card:hover {
+          background: rgba(168, 85, 247, 0.08);
+          border-color: rgba(168, 85, 247, 0.5);
+        }
+        .ps-accessible-card.focused {
+          background: rgba(251, 191, 36, 0.15) !important;
+          border-color: var(--ps-secondary) !important;
+          box-shadow: 0 0 15px rgba(251, 191, 36, 0.3);
+        }
+        .ps-accessible-emoji {
+          font-size: 2.2rem;
+          background: rgba(255,255,255,0.06);
+          width: 50px;
+          height: 50px;
+          border-radius: 14px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        .ps-accessible-content {
+          flex: 1;
+        }
+        .ps-accessible-title {
+          font-size: 11px;
+          font-weight: 900;
+          color: white;
+        }
+        .ps-accessible-desc {
+          font-size: 8px;
+          color: #c084fc;
+          margin-top: 1px;
         }
 
         .ps-header {
           text-align: center;
-          margin-bottom: 12px;
-          position: relative;
-          z-index: 2;
+          margin-bottom: 4px;
         }
         .ps-title {
           font-size: 1.6rem;
@@ -144,364 +226,161 @@ export default function TunanetraMode({
           text-transform: uppercase;
         }
 
-        /* Top Welcome Card */
-        .ps-welcome-card {
-          background: var(--ps-card);
-          border-radius: 20px;
-          padding: 10px 14px;
-          border: 1.5px solid rgba(168, 85, 247, 0.25);
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 14px;
-          position: relative;
-          z-index: 2;
-        }
-        .ps-welcome-text h4 {
-          font-size: 10px;
-          font-weight: 800;
-          color: var(--ps-secondary);
-          margin: 0;
-        }
-        .ps-welcome-text p {
-          font-size: 7.5px;
-          color: #cbd5e1;
-          margin: 1px 0 0 0;
-          line-height: 1.4;
-        }
-        .ps-wave-bar {
-          display: flex;
-          align-items: flex-end;
-          gap: 3px;
-          height: 24px;
-        }
-        .ps-wave-line {
-          width: 3px;
-          background: var(--ps-primary);
-          border-radius: 4px;
-          transition: height 0.15s ease;
-        }
-
-        /* Circular Map section */
-        .ps-map-view {
-          background: rgba(8, 3, 23, 0.6);
-          border: 2.5px solid rgba(168, 85, 247, 0.25);
-          border-radius: 24px;
-          height: 145px;
-          position: relative;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          overflow: hidden;
-          margin-bottom: 12px;
-        }
-        .ps-map-lines {
-          position: absolute;
-          width: 100%;
-          height: 100%;
-          stroke: rgba(168,85,247,0.15);
-          stroke-dasharray: 4,4;
-          pointer-events: none;
-        }
-        .ps-core-globe {
-          width: 75px;
-          height: 75px;
-          background: radial-gradient(circle at 30% 30%, #d8b4fe 0%, #7c3aed 50%, #3b0764 100%);
-          border-radius: 50%;
-          box-shadow: 0 8px 20px rgba(0,0,0,0.5), inset 0 -6px 0 rgba(0,0,0,0.3);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .ps-globe-icon {
-          font-size: 1.8rem;
-          animation: float 4s ease-in-out infinite;
-        }
-
-        /* 3D clickable sphere buttons */
-        .ps-sphere-btn {
-          position: absolute;
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          border: 2px solid white;
-          box-shadow: 0 6px 12px rgba(0,0,0,0.3), inset 0 3px 0 rgba(255,255,255,0.4);
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-          z-index: 10;
-        }
-        .ps-sphere-btn:hover {
-          transform: scale(1.15);
-        }
-        .ps-sphere-btn:active {
-          transform: scale(0.95);
-        }
-
-        .ps-btn-hutan { top: 8px; left: 20px; background: radial-gradient(circle at 30% 30%, #a855f7, #6b21a8); }
-        .ps-btn-danau { bottom: 8px; left: 20px; background: radial-gradient(circle at 30% 30%, #3b82f6, #1d4ed8); }
-        .ps-btn-gua { top: 8px; right: 20px; background: radial-gradient(circle at 30% 30%, #10b981, #065f46); }
-        .ps-btn-puncak { bottom: 8px; right: 20px; background: radial-gradient(circle at 30% 30%, #fbbf24, #d97706); }
-
-        .ps-sphere-emoji { font-size: 1rem; line-height: 1; }
-        .ps-sphere-label { font-size: 6px; font-weight: 900; color: white; margin-top: 0.5px; text-shadow: 0 1px 2px rgba(0,0,0,0.7); }
-
-        /* Footstep path animation visual */
-        .ps-footsteps {
-          position: absolute;
-          font-size: 7px;
-          color: var(--ps-secondary);
-          opacity: 0.5;
-          pointer-events: none;
-        }
-
-        /* Soundy Assistant bubble */
-        .ps-soundy-card {
-          background: var(--ps-card);
-          border-radius: 18px;
-          padding: 10px;
-          border: 1.5px solid rgba(168, 85, 247, 0.2);
+        /* Helper speech card */
+        .ps-helper-card {
+          background: rgba(255,255,255,0.02);
+          border: 1.5px dashed rgba(168,85,247,0.3);
+          border-radius: 16px;
+          padding: 10px 12px;
           display: flex;
           align-items: center;
           gap: 12px;
-          margin-bottom: 12px;
-          position: relative;
-          z-index: 2;
         }
-        .ps-soundy-avatar {
-          font-size: 2.2rem;
-          animation: float 4s ease-in-out infinite alternate;
-        }
-        .ps-soundy-text {
-          font-size: 7.5px;
-          line-height: 1.4;
-          color: #ddd6fe;
-        }
+        .ps-helper-avatar { font-size: 2rem; }
+        .ps-helper-msg { font-size: 8px; font-weight: 700; color: #ddd6fe; line-height: 1.4; }
 
-        /* Progress row */
-        .ps-progress-row {
-          background: rgba(255,255,255,0.03);
-          border-radius: 16px;
-          padding: 8px 12px;
-          border: 1px solid rgba(255,255,255,0.05);
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 12px;
-        }
-        .ps-progress-label {
-          font-size: 8px;
-          font-weight: 800;
-          color: var(--ps-secondary);
-        }
-        .ps-progress-badges {
-          display: flex;
-          gap: 4px;
-        }
-        .ps-badge {
-          width: 18px;
-          height: 18px;
-          background: rgba(255,255,255,0.08);
-          border-radius: 50%;
-          border: 1px solid rgba(255,255,255,0.1);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 10px;
-        }
-
-        /* Interactive flow views */
-        .ps-game-card {
-          background: var(--ps-card);
-          border: 2px solid var(--ps-primary);
-          border-radius: 24px;
-          padding: 16px;
-          min-height: 230px;
-          display: flex;
-          flex-direction: column;
-          animation: slideUp 0.3s ease-out;
-        }
-        .ps-game-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          border-bottom: 1.5px dashed rgba(255,255,255,0.1);
-          padding-bottom: 6px;
-          margin-bottom: 10px;
-        }
-        .ps-game-title {
-          font-size: 10px;
-          font-weight: 900;
-          color: var(--ps-secondary);
-          text-transform: uppercase;
-        }
-        .ps-back-btn {
-          background: #ef4444;
-          color: white;
-          font-size: 7.5px;
-          font-weight: 800;
-          padding: 4px 10px;
-          border-radius: 50px;
-          border: none;
-          cursor: pointer;
-        }
-
-        /* Speak Quiz Soundwave */
-        .ps-soundwave {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          gap: 4px;
-          height: 35px;
-          margin-bottom: 8px;
-        }
-        .ps-soundwave-bar {
-          width: 4px;
-          background: var(--ps-secondary);
-          border-radius: 4px;
-          height: 20%;
-          transition: height 0.1s ease;
-        }
-        .ps-soundwave-bar.active {
-          animation: bounce 0.6s infinite alternate;
-        }
-
-        .ps-play-btn {
-          width: 50px;
-          height: 50px;
-          border-radius: 50%;
-          background: var(--ps-secondary);
-          border: none;
-          font-size: 1.6rem;
-          color: #0c0418;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          margin: 8px auto;
-          box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
-        }
-
-        /* Tebak Arah Game Buttons */
-        .ps-quiz-options {
-          display: flex;
-          justify-content: center;
-          gap: 8px;
-          margin-top: 10px;
-        }
-        .ps-quiz-btn {
-          background: #110c2e;
-          border: 1.5px solid var(--ps-primary);
-          color: white;
-          font-size: 8px;
-          font-weight: 800;
-          padding: 6px 10px;
-          border-radius: 12px;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 3px;
-          cursor: pointer;
-          min-width: 55px;
-        }
-
-        /* Accessibility setting grid */
-        .ps-settings {
-          display: grid;
-          grid-template-cols: 1fr 1fr;
-          gap: 8px;
-          background: rgba(0, 0, 0, 0.25);
-          padding: 8px;
-          border-radius: 16px;
-          border: 1.5px solid rgba(168, 85, 247, 0.15);
-          margin-top: auto;
-        }
-        .ps-setting-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          font-size: 7.5px;
-          font-weight: 800;
-          color: #c084fc;
-        }
-        .ps-setting-btn {
-          background: rgba(255,255,255,0.06);
-          border: 1px solid rgba(255,255,255,0.1);
-          color: white;
-          font-size: 7px;
-          padding: 2.5px 6px;
-          border-radius: 6px;
-          cursor: pointer;
-        }
-
-        /* Action footer bar */
-        .ps-footer {
-          display: grid;
-          grid-template-cols: repeat(5, 1fr);
-          gap: 6px;
-          margin-top: 10px;
-          border-top: 1.5px solid rgba(255,255,255,0.06);
-          padding-top: 8px;
-        }
-        .ps-footer-btn {
+        /* collected count progress bar */
+        .ps-progress-bar {
           background: rgba(255,255,255,0.03);
           border: 1px solid rgba(255,255,255,0.06);
-          color: #ddd6fe;
-          font-size: 7.5px;
-          font-weight: 800;
-          padding: 6px 2px;
-          border-radius: 10px;
+          border-radius: 14px;
+          padding: 8px 12px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+        .ps-progress-txt { font-size: 8px; font-weight: 900; color: var(--ps-secondary); }
+        .ps-progress-icons { display: flex; gap: 4px; }
+        .ps-progress-icon { font-size: 10px; opacity: 0.8; }
+
+        /* Huge layout for settings */
+        .ps-huge-settings {
+          background: rgba(0,0,0,0.3);
+          border: 1.5px solid rgba(168,85,247,0.2);
+          border-radius: 20px;
+          padding: 12px;
           display: flex;
           flex-direction: column;
+          gap: 8px;
+        }
+        .ps-settings-header { font-size: 8.5px; font-weight: 900; color: var(--ps-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+        .ps-settings-grid { display: grid; grid-template-cols: 1fr 1fr; gap: 8px; }
+        .ps-settings-btn {
+          width: 100%;
+          background: rgba(255,255,255,0.05);
+          border: 1.5px solid rgba(255,255,255,0.1);
+          color: white;
+          font-size: 8px;
+          font-weight: 800;
+          padding: 8px;
+          border-radius: 10px;
+          cursor: pointer;
+          text-align: center;
+        }
+        .ps-settings-btn.active { border-color: var(--ps-primary); background: rgba(168,85,247,0.15); }
+
+        /* Vertical Action Stack at bottom */
+        .ps-action-stack {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          width: 100%;
+          border-top: 1.5px solid rgba(255,255,255,0.1);
+          padding-top: 12px;
+        }
+        .ps-giant-btn {
+          width: 100%;
+          background: rgba(255,255,255,0.04);
+          border: 2px solid rgba(255,255,255,0.1);
+          color: white;
+          font-size: 10px;
+          font-weight: 800;
+          padding: 14px;
+          border-radius: 16px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          transition: all 0.2s;
+        }
+        .ps-giant-btn:hover {
+          background: rgba(255,255,255,0.08);
+          border-color: rgba(255,255,255,0.25);
+        }
+        .ps-giant-btn.focused {
+          background: rgba(251,191,36,0.15) !important;
+          border-color: var(--ps-secondary) !important;
+          box-shadow: 0 0 10px rgba(251,191,36,0.25);
+        }
+
+        .ps-wave-bar { display: flex; gap: 3px; height: 16px; align-items: flex-end; }
+        .ps-wave-line { width: 3px; background: var(--ps-primary); border-radius: 4px; }
+
+        .ps-game-card {
+          background: rgba(255,255,255,0.02);
+          border: 2.5px solid var(--ps-primary);
+          border-radius: 24px;
+          padding: 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .ps-game-title-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px dashed rgba(255,255,255,0.1); padding-bottom: 6px; }
+        .ps-game-title-txt { font-size: 11px; font-weight: 900; color: var(--ps-secondary); }
+
+        .ps-play-speaker-btn {
+          width: 65px;
+          height: 65px;
+          border-radius: 50%;
+          background: var(--ps-primary);
+          border: none;
+          font-size: 2rem;
+          color: white;
+          display: flex;
           align-items: center;
           justify-content: center;
           cursor: pointer;
-          transition: background-color 0.15s;
-        }
-        .ps-footer-btn:hover {
-          background: rgba(168, 85, 247, 0.1);
+          margin: 10px auto;
+          box-shadow: 0 6px 15px rgba(168, 85, 247, 0.4);
         }
 
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-4px); }
-        }
+        .ps-soundwave { display: flex; justify-content: center; gap: 4px; height: 30px; }
+        .ps-soundwave-bar { width: 4px; background: var(--ps-secondary); border-radius: 4px; height: 20%; transition: height 0.1s ease; }
+        .ps-soundwave-bar.active { animation: bounce 0.6s infinite alternate; }
+
         @keyframes bounce {
-          from { height: 15%; }
-          to { height: 100%; }
+          0% { height: 20%; }
+          100% { height: 100%; }
         }
-        @keyframes slideUp {
-          from { transform: translateY(12px); opacity: 0; }
-          to { transform: translateY(0); opacity: 1; }
+        @keyframes float {
+          0% { transform: translateY(0); }
+          100% { transform: translateY(-4px); }
         }
       ` }} />
 
-      <div className="ps-glow-overlay"></div>
+      {/* Header */}
+      <header className="ps-header">
+        <h2 className="ps-title">PLANET SUARA</h2>
+        <span className="ps-subtitle">MODE TUNANETRA</span>
+      </header>
 
-      {/* VIEW A: MAIN MAP */}
+      {/* VIEW 1: MAIN ZONE SELECTIONS */}
       {activeTab === 'main' && (
         <>
-          <header className="ps-header">
-            <h2 className="ps-title">🪐 PLANET SUARA</h2>
-            <p className="ps-subtitle">Mode Tunanetra</p>
-          </header>
-
-          {/* Welcome visualizer */}
-          <div className="ps-welcome-card">
-            <div className="ps-welcome-text">
-              <h4>Selamat datang, Explorer!</h4>
-              <p>Planet ini gelap, tapi suara akan menuntun setiap langkahmu.</p>
+          {/* Helper assistant card */}
+          <div className="ps-helper-card">
+            <span className="ps-helper-avatar">🤖</span>
+            <div className="ps-helper-msg">
+              "Ketuk satu kali untuk mendengar petunjuk zona. Ketuk dua kali untuk masuk belajar!"
             </div>
             <div className="ps-wave-bar">
-              {[15, 35, 25, 50, 20, 30].map((h, i) => (
+              {[30, 80, 50, 90, 40].map((h, i) => (
                 <div
                   key={i}
                   className="ps-wave-line"
                   style={{
-                    height: isTunanetraNarrating ? `${h}%` : '6px',
+                    height: isTunanetraNarrating ? `${h}%` : '4px',
                     animation: isTunanetraNarrating ? `bounce ${0.4 + i * 0.1}s infinite alternate` : 'none'
                   }}
                 ></div>
@@ -509,195 +388,249 @@ export default function TunanetraMode({
             </div>
           </div>
 
-          {/* Circular Map */}
-          <div className="ps-map-view">
-            <svg className="ps-map-lines" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <circle cx="50" cy="50" r="38" fill="none" />
-              <path d="M25,25 Q50,15 75,25" fill="none" />
-              <path d="M25,75 Q50,85 75,75" fill="none" />
-            </svg>
-
-            {/* Footstep indicator dots */}
-            <span className="ps-footsteps" style={{ top: '35px', left: '42px' }}>👣</span>
-            <span className="ps-footsteps" style={{ top: '65px', left: '42px' }}>👣</span>
-            <span className="ps-footsteps" style={{ top: '48px', right: '40px' }}>👣</span>
-
-            <div className="ps-core-globe">
-              <span className="ps-globe-icon">🎧</span>
+          {/* Accessible 4 Zones stacked vertically */}
+          <div className="ps-accessible-list">
+            <div
+              onClick={() => handleItemInteraction(
+                'hutan',
+                "Hutan Gema. Kuis mengenal materi hewan kelinci. Ketuk dua kali untuk masuk.",
+                () => { setActiveTab('materi'); announce("Memasuki Hutan Gema. Dengarkan materi kelinci."); }
+              )}
+              className={`ps-accessible-card ${focusedId === 'hutan' ? 'focused' : ''}`}
+            >
+              <span className="ps-accessible-emoji">🌳</span>
+              <div className="ps-accessible-content">
+                <h4 className="ps-accessible-title">ZONA 1: HUTAN GEMA</h4>
+                <p className="ps-accessible-desc">Dengarkan Materi Kelinci</p>
+              </div>
             </div>
 
-            {/* Landmarks */}
-            <button
-              onClick={() => { setActiveTab('materi'); playBeep(520); speakText("Zona Hutan Gema. Mari dengarkan materi kelinci."); }}
-              className="ps-sphere-btn ps-btn-hutan"
+            <div
+              onClick={() => handleItemInteraction(
+                'danau',
+                "Danau Irama. Permainan menebak arah suara hewan burung. Ketuk dua kali untuk masuk.",
+                () => { setActiveTab('tebak'); announce("Memasuki Danau Irama. Mari menebak arah suara burung."); }
+              )}
+              className={`ps-accessible-card ${focusedId === 'danau' ? 'focused' : ''}`}
             >
-              <span className="ps-sphere-emoji">🌳</span>
-              <span className="ps-sphere-label">Hutan Gema</span>
-            </button>
+              <span className="ps-accessible-emoji">🔊</span>
+              <div className="ps-accessible-content">
+                <h4 className="ps-accessible-title">ZONA 2: DANAU IRAMA</h4>
+                <p className="ps-accessible-desc">Permainan Tebak Arah Suara</p>
+              </div>
+            </div>
 
-            <button
-              onClick={() => { setActiveTab('tebak'); playBeep(580); speakText("Zona Danau Irama. Mari tebak arah suara."); }}
-              className="ps-sphere-btn ps-btn-danau"
+            <div
+              onClick={() => handleItemInteraction(
+                'gua',
+                "Gua Tanya. Kuis interaktif menjawab dengan mikrofon suara. Ketuk dua kali untuk masuk.",
+                () => { setActiveTab('kuis'); announce("Memasuki Gua Tanya. Kuis interaktif mikrofon."); }
+              )}
+              className={`ps-accessible-card ${focusedId === 'gua' ? 'focused' : ''}`}
             >
-              <span className="ps-sphere-emoji">🌊</span>
-              <span className="ps-sphere-label">Danau Irama</span>
-            </button>
+              <span className="ps-accessible-emoji">🏰</span>
+              <div className="ps-accessible-content">
+                <h4 className="ps-accessible-title">ZONA 3: GUA TANYA</h4>
+                <p className="ps-accessible-desc">Kuis Suara Kelinci</p>
+              </div>
+            </div>
 
-            <button
-              onClick={() => { setActiveTab('kuis'); playBeep(640); speakText("Zona Gua Tanya. Kuis mikrofon."); }}
-              className="ps-sphere-btn ps-btn-gua"
+            <div
+              onClick={() => handleItemInteraction(
+                'puncak',
+                "Puncak Harmoni. Zona terkunci. Kumpulkan 13 Jejak Suara terlebih dahulu untuk membukanya.",
+                () => {
+                  if (jejakCount >= 15) {
+                    announce("Memasuki Puncak Harmoni.");
+                  } else {
+                    announce("Zona Puncak Harmoni terkunci. Kamu membutuhkan " + (15 - jejakCount) + " Jejak Suara lagi.");
+                  }
+                }
+              )}
+              className={`ps-accessible-card opacity-60 ${focusedId === 'puncak' ? 'focused' : ''}`}
             >
-              <span className="ps-sphere-emoji">🏰</span>
-              <span className="ps-sphere-label">Gua Tanya</span>
-            </button>
-
-            <button
-              onClick={() => {
-                playBeep(720);
-                speakText("Zona Puncak Harmoni terkunci. Kumpulkan 15 Jejak Suara terlebih dahulu!");
-                if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-              }}
-              className="ps-sphere-btn ps-btn-puncak opacity-60"
-            >
-              <span className="ps-sphere-emoji">🔒</span>
-              <span className="ps-sphere-label">Puncak</span>
-            </button>
-          </div>
-
-          {/* Soundy helper */}
-          <div className="ps-soundy-card">
-            <span className="ps-soundy-avatar">🤖</span>
-            <div className="ps-soundy-text">
-              <b>Soundy:</b> "Aku Soundy, asistenmu. Ketuk salah satu **Bintang Lokasi** di peta untuk melatih pendengaranmu!"
+              <span className="ps-accessible-emoji">🔒</span>
+              <div className="ps-accessible-content">
+                <h4 className="ps-accessible-title">ZONA 4: PUNCAK HARMONI</h4>
+                <p className="ps-accessible-desc">Terkunci (Butuh 15 Jejak)</p>
+              </div>
             </div>
           </div>
 
-          {/* Collected badges */}
-          <div className="ps-progress-row">
-            <span className="ps-progress-label">Jejak Suara: {jejakCount} / 50</span>
-            <div className="ps-progress-badges">
-              <span className="ps-badge">🐦</span>
-              <span className="ps-badge">🌧️</span>
-              <span className="ps-badge">🌊</span>
-              <span className="ps-badge">🐄</span>
-              {soundGuides.kelinci && <span className="ps-badge" style={{ borderColor: '#fbbf24' }}>🐰</span>}
+          {/* Progress row */}
+          <div className="ps-progress-bar">
+            <span className="ps-progress-txt">Jejak Suara Terkumpul: {jejakCount} / 50</span>
+            <div className="ps-progress-icons">
+              <span className="ps-progress-icon">🐦</span>
+              <span className="ps-progress-icon">🌧️</span>
+              <span className="ps-progress-icon">🌊</span>
+              <span className="ps-progress-icon">🐄</span>
+              {soundGuides.kelinci && <span className="ps-progress-icon">🐰</span>}
+            </div>
+          </div>
+
+          {/* Large Speech Controls */}
+          <div className="ps-huge-settings">
+            <h5 className="ps-settings-header">PENGATURAN SUARA ASISTEN</h5>
+            <div className="ps-settings-grid">
+              <button
+                onClick={() => {
+                  playBeep(440);
+                  const nextRate = speechRate === 'Normal' ? 'Lambat' : speechRate === 'Lambat' ? 'Cepat' : 'Normal';
+                  setSpeechRate(nextRate);
+                  announce("Kecepatan bicara diubah menjadi " + nextRate);
+                }}
+                className="ps-settings-btn"
+              >
+                Kecepatan: {speechRate}
+              </button>
+              
+              <button
+                onClick={() => {
+                  playBeep(480);
+                  const nextVoice = voiceType === 'Suara Ramah' ? 'Suara Robot' : 'Suara Ramah';
+                  setVoiceType(nextVoice);
+                  announce("Jenis suara diubah menjadi " + nextVoice);
+                }}
+                className="ps-settings-btn"
+              >
+                Suara: {voiceType}
+              </button>
             </div>
           </div>
         </>
       )}
 
-      {/* VIEW B.1: DENGARKAN MATERI */}
+      {/* VIEW 2: DENGARKAN MATERI */}
       {activeTab === 'materi' && (
         <div className="ps-game-card">
-          <div className="ps-game-header">
-            <h3 className="ps-game-title">🔊 1. Dengarkan Materi</h3>
-            <button onClick={() => setActiveTab('main')} className="ps-back-btn">Kembali</button>
+          <div className="ps-game-title-row">
+            <h3 className="ps-game-title-txt">🔊 ZONA 1: DENGAR MATERI</h3>
+            <button
+              onClick={() => handleItemInteraction('kembali', "Kembali ke Beranda.", () => setActiveTab('main'))}
+              className={`px-3 py-1 bg-red-600 text-white font-extrabold text-[8.5px] rounded-full ${focusedId === 'kembali' ? 'border-2 border-yellow-400' : ''}`}
+            >
+              Kembali
+            </button>
           </div>
 
-          <p className="text-[9px] font-bold text-slate-400 text-center mb-2">
-            Soundy akan membacakan cerita tentang kelinci:
+          <p className="text-[8px] text-center text-purple-200">
+            Ketuk tombol bulat ungu di bawah untuk mendengar penjelasan kelinci.
           </p>
-
-          <div className="bg-slate-950/50 p-3 rounded-xl border border-purple-500/20 text-center mb-2">
-            <p className="text-[9.5px] font-semibold leading-relaxed">
-              "Kelinci adalah hewan mamalia kecil berbulu halus yang suka melompat cepat dan memakan sayuran hijau."
-            </p>
-          </div>
 
           <button
             onClick={() => {
               playBeep(440);
-              speakText("Hari ini kita belajar tentang kelinci. Kelinci adalah hewan mamalia berbulu halus yang melompat cepat.");
+              speakText("Hari ini kita belajar tentang kelinci. Kelinci adalah hewan mamalia kecil berbulu halus yang suka melompat cepat dan memakan sayuran hijau.", true);
             }}
-            className="ps-play-btn"
-            title="Putar Suara"
+            className="ps-play-speaker-btn"
           >
-            ▶️
+            📻
+          </button>
+
+          <p className="text-[8.5px] leading-relaxed bg-slate-900/60 p-3 rounded-lg text-center font-semibold">
+            "Kelinci adalah hewan mamalia kecil berbulu halus yang suka melompat cepat dan memakan sayuran hijau."
+          </p>
+
+          <button
+            onClick={() => handleItemInteraction('materi-lanjut', "Lanjut ke tebak suara.", () => setActiveTab('tebak'))}
+            className={`w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[9px] rounded-xl text-center ${focusedId === 'materi-lanjut' ? 'border-2 border-yellow-400' : ''}`}
+          >
+            ➡️ Lanjut ke Tebak Suara
           </button>
         </div>
       )}
 
-      {/* VIEW B.2: TEMUKAN JEJAK SUARA */}
+      {/* VIEW 3: TEMUKAN JEJAK SUARA */}
       {activeTab === 'tebak' && (
         <div className="ps-game-card">
-          <div className="ps-game-header">
-            <h3 className="ps-game-title">🎧 2. Temukan Jejak Suara</h3>
-            <button onClick={() => setActiveTab('main')} className="ps-back-btn">Kembali</button>
+          <div className="ps-game-title-row">
+            <h3 className="ps-game-title-txt">🎧 ZONA 2: TEBAK SUARA</h3>
+            <button
+              onClick={() => handleItemInteraction('kembali', "Kembali ke Beranda.", () => setActiveTab('main'))}
+              className={`px-3 py-1 bg-red-600 text-white font-extrabold text-[8.5px] rounded-full ${focusedId === 'kembali' ? 'border-2 border-yellow-400' : ''}`}
+            >
+              Kembali
+            </button>
           </div>
 
-          <p className="text-[9px] font-bold text-slate-400 text-center mb-2">
-            Dengarkan suara petunjuk di bawah dan tebak hewannya:
+          <p className="text-[8px] text-center text-purple-200">
+            Dengarkan suara di bawah dan tebak hewannya.
           </p>
-
-          <div className="bg-slate-950/50 p-3 rounded-xl border border-purple-500/20 text-center mb-2 flex items-center justify-between">
-            <span className="text-xl">📻</span>
-            <p className="text-[9px] font-bold text-slate-200">"Aku mendengar suara kicau burung dari arah kiri."</p>
-          </div>
 
           <button
             onClick={() => {
               playBeep(680, 'sine', 0.5);
-              speakText("Aku mendengar suara burung dari arah kiri. Suara manakah itu?");
+              speakText("Petunjuk suara: Kicauan merdu di pagi hari. Siapakah aku?", true);
             }}
-            className="px-4 py-1 bg-purple-600 text-white text-[8px] font-bold rounded-lg self-center border border-purple-400"
+            className="w-full py-2 bg-purple-950 hover:bg-purple-900 border border-purple-500 rounded-xl text-[8.5px] font-bold text-center"
           >
             🔊 Putar Petunjuk Suara
           </button>
 
-          <div className="ps-quiz-options">
+          <div className="flex flex-col gap-2 mt-2">
             <button
-              onClick={() => {
-                playBeep(523);
-                setSelectedAnimalSound('burung');
-                setJejakCount(prev => Math.min(50, prev + 1));
-                confetti({ particleCount: 20, origin: { y: 0.6 } });
-                speakText("Tepat Sekali! Itu adalah burung.");
-              }}
-              className="ps-quiz-btn"
-              style={{ borderColor: selectedAnimalSound === 'burung' ? '#10b981' : '#a855f7' }}
+              onClick={() => handleItemInteraction(
+                'opt-burung',
+                "Pilihan 1: Burung. Ketuk dua kali untuk memilih.",
+                () => {
+                  setSelectedAnimalSound('burung');
+                  setJejakCount(prev => Math.min(50, prev + 1));
+                  confetti({ particleCount: 20, origin: { y: 0.6 } });
+                  announce("Tepat sekali! Jawabanmu benar, suara itu adalah Burung.");
+                }
+              )}
+              className={`w-full py-3 bg-slate-900/80 border text-[9px] font-bold rounded-xl flex items-center justify-center gap-2 ${focusedId === 'opt-burung' ? 'border-yellow-400 bg-yellow-950/20' : 'border-purple-500'}`}
             >
-              <span>🐦</span>
-              <span>Burung</span>
+              <span>🐦</span> Burung {selectedAnimalSound === 'burung' && '✓'}
             </button>
 
             <button
-              onClick={() => {
-                playBeep(180, 'sawtooth');
-                speakText("Bukan, itu mobil.");
-              }}
-              className="ps-quiz-btn"
+              onClick={() => handleItemInteraction(
+                'opt-sapi',
+                "Pilihan 2: Sapi. Ketuk dua kali untuk memilih.",
+                () => {
+                  announce("Kurang tepat. Suara sapi adalah lenguhan, sedangkan ini suara kicau merdu.");
+                }
+              )}
+              className={`w-full py-3 bg-slate-900/80 border text-[9px] font-bold rounded-xl flex items-center justify-center gap-2 ${focusedId === 'opt-sapi' ? 'border-yellow-400 bg-yellow-950/20' : 'border-purple-500'}`}
             >
-              <span>🚗</span>
-              <span>Mobil</span>
+              <span>🐄</span> Sapi
             </button>
 
             <button
-              onClick={() => {
-                playBeep(180, 'sawtooth');
-                speakText("Kurang tepat, itu hujan.");
-              }}
-              className="ps-quiz-btn"
+              onClick={() => handleItemInteraction(
+                'opt-hujan',
+                "Pilihan 3: Hujan. Ketuk dua kali untuk memilih.",
+                () => {
+                  announce("Kurang tepat. Suara hujan adalah gemercik air, sedangkan ini suara kicau burung.");
+                }
+              )}
+              className={`w-full py-3 bg-slate-900/80 border text-[9px] font-bold rounded-xl flex items-center justify-center gap-2 ${focusedId === 'opt-hujan' ? 'border-yellow-400 bg-yellow-950/20' : 'border-purple-500'}`}
             >
-              <span>🌧️</span>
-              <span>Hujan</span>
+              <span>🌧️</span> Hujan
             </button>
           </div>
         </div>
       )}
 
-      {/* VIEW B.3: JAWAB DENGAN SUARA */}
+      {/* VIEW 4: JAWAB DENGAN SUARA */}
       {activeTab === 'kuis' && (
         <div className="ps-game-card">
-          <div className="ps-game-header">
-            <h3 className="ps-game-title">🎤 3. Jawab Dengan Suara</h3>
-            <button onClick={() => setActiveTab('main')} className="ps-back-btn">Kembali</button>
+          <div className="ps-game-title-row">
+            <h3 className="ps-game-title-txt">🎤 ZONA 3: KUIS SUARA</h3>
+            <button
+              onClick={() => handleItemInteraction('kembali', "Kembali ke Beranda.", () => setActiveTab('main'))}
+              className={`px-3 py-1 bg-red-600 text-white font-extrabold text-[8.5px] rounded-full ${focusedId === 'kembali' ? 'border-2 border-yellow-400' : ''}`}
+            >
+              Kembali
+            </button>
           </div>
 
-          <p className="text-[9px] font-bold text-slate-400 text-center mb-2">
-            Pertanyaan kuis: apa makanan kesukaan kelinci?
+          <p className="text-[8.5px] text-center text-purple-200">
+            Pertanyaan: Apa makanan kesukaan kelinci?
           </p>
 
-          {/* Soundwave animation */}
           <div className="ps-soundwave">
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <div
@@ -714,96 +647,137 @@ export default function TunanetraMode({
           <button
             onClick={handleMicrophoneClick}
             disabled={micListeningSimulated}
-            className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-[9px] rounded-xl flex items-center justify-center gap-1 border-b-3 border-amber-700 disabled:opacity-50"
+            className="w-full py-3 bg-amber-500 text-slate-950 font-black text-[10px] rounded-xl flex items-center justify-center gap-2"
           >
             🎤 {micListeningSimulated ? 'Mendengarkan...' : 'Ketuk & Ucapkan Jawaban'}
           </button>
 
           {tunanetraAnswerResult && (
-            <p className="text-[9px] text-center text-emerald-400 font-bold mt-2">
+            <p className="text-[9px] text-center text-emerald-400 font-bold bg-emerald-950/20 py-1.5 rounded-lg border border-emerald-500/20">
               {tunanetraAnswerResult}
             </p>
           )}
-        </div>
-      )}
 
-      {/* Accessibility settings */}
-      {activeTab === 'main' && (
-        <div className="ps-settings">
-          <div className="ps-setting-row">
-            <span>Bicara:</span>
-            <button onClick={() => setSpeechRate(prev => prev === 'Normal' ? 'Lambat' : 'Normal')} className="ps-setting-btn">
-              {speechRate}
-            </button>
-          </div>
-
-          <div className="ps-setting-row">
-            <span>Suara:</span>
-            <button onClick={() => setVoiceType(prev => prev === 'Suara Ramah' ? 'Suara Robot' : 'Suara Ramah')} className="ps-setting-btn">
-              {voiceType}
-            </button>
-          </div>
-
-          <div className="ps-setting-row" style={{ gridColumn: 'span 2', marginTop: '2px' }}>
-            <span>Volume ({volume}%)</span>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={volume}
-              onChange={(e) => setVolume(e.target.value)}
-              className="w-20 h-1 bg-purple-500 rounded-lg appearance-none cursor-pointer"
-            />
+          {/* Accessible Fallback Buttons */}
+          <div className="mt-2 space-y-1.5">
+            <p className="text-[7.5px] font-bold text-slate-400 text-center">Atau ketuk dua kali jawaban di bawah:</p>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={() => handleItemInteraction('ans-wortel', "Pilih Wortel.", () => handleManualQuizOption('wortel'))}
+                className={`py-2 bg-slate-900 border text-[8px] font-bold rounded-lg ${focusedId === 'ans-wortel' ? 'border-yellow-400 bg-yellow-950/20' : 'border-slate-700'}`}
+              >
+                🥕 Wortel
+              </button>
+              <button
+                onClick={() => handleItemInteraction('ans-daging', "Pilih Daging.", () => handleManualQuizOption('daging'))}
+                className={`py-2 bg-slate-900 border text-[8px] font-bold rounded-lg ${focusedId === 'ans-daging' ? 'border-yellow-400 bg-yellow-950/20' : 'border-slate-700'}`}
+              >
+                🥩 Daging
+              </button>
+              <button
+                onClick={() => handleItemInteraction('ans-roti', "Pilih Roti.", () => handleManualQuizOption('roti'))}
+                className={`py-2 bg-slate-900 border text-[8px] font-bold rounded-lg ${focusedId === 'ans-roti' ? 'border-yellow-400 bg-yellow-950/20' : 'border-slate-700'}`}
+              >
+                🍞 Roti
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {/* FOOTER ACTIONS BAR */}
-      <footer className="ps-footer">
-        <div
-          onClick={() => { playBeep(520); speakText("Memulai belajar."); setActiveTab('materi'); }}
-          className="ps-footer-btn"
-          role="button"
+      <footer className="ps-action-stack">
+        <button
+          onClick={() => handleItemInteraction(
+            'foot-mulai',
+            "Mulai belajar dan dengar petunjuk.",
+            () => triggerCurrentContextGuide()
+          )}
+          className={`ps-giant-btn ${focusedId === 'foot-mulai' ? 'focused' : ''}`}
         >
           <span>▶️</span>
-          <span>Mulai</span>
-        </div>
+          <span>Mulai / Petunjuk</span>
+        </button>
 
-        <div
-          onClick={() => { playBeep(440); speakText("Mengulang kembali."); }}
-          className="ps-footer-btn"
-          role="button"
+        <button
+          onClick={() => handleItemInteraction(
+            'foot-ulangi',
+            "Ulangi suara asisten.",
+            () => { announce("Mengulang suara asisten terakhir."); triggerCurrentContextGuide(); }
+          )}
+          className={`ps-giant-btn ${focusedId === 'foot-ulangi' ? 'focused' : ''}`}
         >
           <span>🔄</span>
-          <span>Ulangi</span>
-        </div>
+          <span>Ulangi Suara</span>
+        </button>
 
-        <div
-          onClick={() => { playBeep(640); speakText("Panduan suara diaktifkan."); }}
-          className="ps-footer-btn"
-          role="button"
+        <button
+          onClick={() => handleItemInteraction(
+            'foot-apaini',
+            "Panduan tata letak halaman ini.",
+            () => {
+              if (activeTab === 'main') {
+                announce("Halaman Beranda. Terdapat empat tombol zona petualangan di tengah layar, dan tombol pengaturan suara di bagian bawah.");
+              } else {
+                announce("Halaman permainan aktif. Terdapat tombol kembali di sudut kanan atas, petunjuk di tengah layar, dan tombol navigasi di bagian bawah.");
+              }
+            }
+          )}
+          className={`ps-giant-btn ${focusedId === 'foot-apaini' ? 'focused' : ''}`}
         >
           <span>❓</span>
           <span>Apa Ini</span>
-        </div>
+        </button>
 
-        <div
-          onClick={() => { playBeep(720); speakText("Lanjut ke modul berikutnya."); }}
-          className="ps-footer-btn"
-          role="button"
+        <button
+          onClick={() => handleItemInteraction(
+            'foot-lanjut',
+            "Lanjut ke zona berikutnya.",
+            () => {
+              if (activeTab === 'main') {
+                setActiveTab('materi');
+                announce("Masuk ke Zona 1: Dengarkan Materi.");
+              } else if (activeTab === 'materi') {
+                setActiveTab('tebak');
+                announce("Masuk ke Zona 2: Tebak Suara.");
+              } else if (activeTab === 'tebak') {
+                setActiveTab('kuis');
+                announce("Masuk ke Zona 3: Kuis Suara.");
+              } else {
+                setActiveTab('main');
+                announce("Kembali ke Beranda.");
+              }
+            }
+          )}
+          className={`ps-giant-btn ${focusedId === 'foot-lanjut' ? 'focused' : ''}`}
         >
           <span>➡️</span>
           <span>Lanjut</span>
-        </div>
+        </button>
 
-        <div
-          onClick={() => { playBeep(880); speakText("Bantuan asisten Soundy aktif."); }}
-          className="ps-footer-btn"
-          role="button"
+        <button
+          onClick={() => handleItemInteraction(
+            'foot-bantuan',
+            "Minta bantuan asisten suara Soundy.",
+            () => announce("Soundy siap membantu. Jika kamu kesulitan, ketuk tombol mana saja sekali untuk mendengar penjelasannya, lalu ketuk lagi untuk memilih.")
+          )}
+          className={`ps-giant-btn ${focusedId === 'foot-bantuan' ? 'focused' : ''}`}
         >
           <span>🤖</span>
-          <span>Bantuan</span>
-        </div>
+          <span>Bantuan Soundy</span>
+        </button>
+
+        <button
+          onClick={() => handleItemInteraction(
+            'foot-keluar',
+            "Keluar dari Mode Tunanetra.",
+            () => { stopSpeaking(); setSelectedMode(null); }
+          )}
+          className={`ps-giant-btn bg-red-950/20 border-red-500/30 text-red-200 ${focusedId === 'foot-keluar' ? 'focused' : ''}`}
+        >
+          <span>🚪</span>
+          <span>Keluar Planet</span>
+        </button>
       </footer>
     </div>
   );

@@ -124,34 +124,87 @@ export default function App() {
   ]);
   const [chatbotTyping, setChatbotTyping] = useState(false);
 
-  // Speech Synthesizer reference
+  // Speech Synthesizer reference with Google TTS fallback
   const speakText = useCallback((text, forceMode = false) => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel(); // Stop any ongoing speech
-      
-      // Use setTimeout to bypass Chrome's synchronous cancel-speak bug
-      setTimeout(() => {
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'id-ID';
+    const playTtsFallback = (txt) => {
+      try {
+        if (window.activeFallbackAudio) {
+          window.activeFallbackAudio.pause();
+        }
+        const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=id&client=tw-ob&q=${encodeURIComponent(txt)}`;
+        const audio = new Audio(url);
+        window.activeFallbackAudio = audio;
         
-        // Look for Indonesian voice specifically
-        const voices = window.speechSynthesis.getVoices();
-        const idVoice = voices.find(v => v.lang.includes('id-ID') || v.name.toLowerCase().includes('indonesian'));
-        if (idVoice) utterance.voice = idVoice;
-
-        utterance.onstart = () => {
+        audio.onplay = () => {
           if (selectedMode === 'tunanetra' || forceMode) {
             setIsTunanetraNarrating(true);
           }
         };
-        utterance.onend = () => {
+        audio.onended = () => {
           setIsTunanetraNarrating(false);
         };
-        utterance.onerror = () => {
+        audio.onerror = () => {
           setIsTunanetraNarrating(false);
         };
-        window.speechSynthesis.speak(utterance);
-      }, 60);
+        audio.play().catch(err => {
+          console.warn("Fallback audio play failed (blocked by autoplay):", err);
+          setIsTunanetraNarrating(false);
+        });
+      } catch (e) {
+        console.error("Fallback audio failed entirely:", e);
+        setIsTunanetraNarrating(false);
+      }
+    };
+
+    if ('speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel(); // Stop any ongoing speech
+        
+        // Resume in case it was paused
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+        
+        // Use setTimeout to bypass Chrome's synchronous cancel-speak bug
+        setTimeout(() => {
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.lang = 'id-ID';
+          
+          // Look for Indonesian voice specifically
+          const voices = window.speechSynthesis.getVoices();
+          const idVoice = voices.find(v => v.lang.includes('id-ID') || v.name.toLowerCase().includes('indonesian') || v.lang.startsWith('id'));
+          if (idVoice) utterance.voice = idVoice;
+
+          utterance.onstart = () => {
+            if (selectedMode === 'tunanetra' || forceMode) {
+              setIsTunanetraNarrating(true);
+            }
+          };
+          utterance.onend = () => {
+            setIsTunanetraNarrating(false);
+          };
+          utterance.onerror = (err) => {
+            console.warn("speechSynthesis error, falling back to Google TTS:", err);
+            setIsTunanetraNarrating(false);
+            playTtsFallback(text);
+          };
+          window.speechSynthesis.speak(utterance);
+
+          // Check if speech fails silently to start
+          setTimeout(() => {
+            if (!window.speechSynthesis.speaking && !window.speechSynthesis.pending && (selectedMode === 'tunanetra' || forceMode)) {
+              console.warn("speechSynthesis did not start, playing fallback...");
+              playTtsFallback(text);
+            }
+          }, 600);
+
+        }, 150); // Increased timeout to 150ms to ensure cancel completes
+      } catch (err) {
+        console.warn("speechSynthesis exception, playing fallback:", err);
+        playTtsFallback(text);
+      }
+    } else {
+      playTtsFallback(text);
     }
   }, [selectedMode]);
 
@@ -159,8 +212,11 @@ export default function App() {
   const stopSpeaking = useCallback(() => {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
-      setIsTunanetraNarrating(false);
     }
+    if (window.activeFallbackAudio) {
+      window.activeFallbackAudio.pause();
+    }
+    setIsTunanetraNarrating(false);
   }, []);
 
   // Blockchain Badge Minting Trigger
@@ -617,20 +673,10 @@ export default function App() {
     // Spawn items using ratios (bx, by)
     const spawned = [];
     
-    // Function to generate safe coordinates avoiding the top-right camera area
-    const getSafeCoords = () => {
-      let bx, by;
-      let isSafe = false;
-      while (!isSafe) {
-        bx = 0.08 + Math.random() * 0.15; // Put on the left side
-        by = 0.2 + Math.random() * 0.6; 
-        isSafe = true;
-      }
-      return { bx, by };
-    };
-
-    PLANET_BUBBLES.forEach(it => {
-      const { bx, by } = getSafeCoords();
+    PLANET_BUBBLES.forEach((it, idx) => {
+      // Place cards at fixed vertical offsets so they never overlap and hide Earth
+      const bx = 0.12;
+      const by = 0.22 + (idx * 0.18); 
       spawned.push({
         ...it,
         bx,
@@ -1301,6 +1347,7 @@ export default function App() {
                 adhdCamError={adhdCamError}
                 adhdControlMode={adhdControlMode}
                 setAdhdControlMode={setAdhdControlMode}
+                startAdhdCamera={startAdhdCamera}
                 adhdTimeLeft={adhdTimeLeft}
                 adhdFailReason={adhdFailReason}
                 feedbackToast={feedbackToast}
@@ -1348,6 +1395,7 @@ export default function App() {
                 stopSpeaking={stopSpeaking}
                 startTunanetraMic={startTunanetraMic}
                 TUNANETRA_STORIES={TUNANETRA_STORIES}
+                setSelectedMode={setSelectedMode}
               />
             )}
             

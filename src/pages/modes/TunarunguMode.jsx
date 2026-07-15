@@ -8,7 +8,8 @@ export default function TunarunguMode({
   setActiveSignWord,
   playTone,
   confetti: globalConfetti,
-  triggerBadgeMinting
+  triggerBadgeMinting,
+  setSelectedMode
 }) {
   // --- States for the interactive Dashboard ---
   const [crystalCount, setCrystalCount] = useState(12);
@@ -96,12 +97,14 @@ export default function TunarunguMode({
 
   // Line Matcher verification
   const handleImageSelect = (img) => {
+    if (pairings[img]) return; // already paired
     playClickSound(520);
     setSelectedImage(img);
     if (selectedName) verifyPairing(img, selectedName);
   };
 
   const handleNameSelect = (name) => {
+    if (Object.values(pairings).includes(name)) return; // already paired
     playClickSound(520);
     setSelectedName(name);
     if (selectedImage) verifyPairing(selectedImage, name);
@@ -112,19 +115,22 @@ export default function TunarunguMode({
                       (img === 'akar' && name === 'Akar') ||
                       (img === 'bunga' && name === 'Bunga');
 
-    setPairings(prev => ({ ...prev, [img]: name }));
-    setPairingFeedback(prev => ({ ...prev, [img]: isCorrect ? 'correct' : 'wrong' }));
-    
-    setSelectedImage(null);
-    setSelectedName(null);
-
     if (isCorrect) {
+      setPairings(prev => ({ ...prev, [img]: name }));
+      setPairingFeedback(prev => ({ ...prev, [img]: 'correct' }));
       playClickSound(650);
       confetti({ particleCount: 15, origin: { y: 0.8 } });
       setCrystalCount(prev => Math.min(50, prev + 2));
     } else {
+      setPairingFeedback(prev => ({ ...prev, [img]: 'wrong' }));
       playClickSound(180);
+      setTimeout(() => {
+        setPairingFeedback(prev => ({ ...prev, [img]: null }));
+      }, 1000);
     }
+    
+    setSelectedImage(null);
+    setSelectedName(null);
   };
 
   const resetPairings = () => {
@@ -150,7 +156,7 @@ export default function TunarunguMode({
           color: white;
           border-radius: 28px;
           padding: 14px;
-          border: 3px solid #3b82f6;
+          border: 3.5px solid #3b82f6;
           box-shadow: inset 0 0 30px rgba(0,0,0,0.8);
           position: relative;
           width: 100%;
@@ -233,7 +239,7 @@ export default function TunarunguMode({
         /* Fitur utama block */
         .pi-fitur-list {
           display: grid;
-          grid-template-cols: 1fr 1fr;
+          grid-template-cols: 1fr;
           gap: 8px;
           width: 100%;
         }
@@ -241,27 +247,27 @@ export default function TunarunguMode({
           background: var(--panel-blue);
           border: 1.5px solid rgba(59, 130, 246, 0.25);
           border-radius: 18px;
-          padding: 8px 10px;
+          padding: 10px;
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 12px;
           cursor: pointer;
           transition: transform 0.2s;
         }
         .pi-fitur-card:active { transform: scale(0.97); }
         .pi-fitur-icon-circle {
-          width: 24px;
-          height: 24px;
+          width: 32px;
+          height: 32px;
           background: linear-gradient(135deg, #3b82f6, #1d4ed8);
           border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 0.8rem;
+          font-size: 1.1rem;
           flex-shrink: 0;
         }
-        .pi-fitur-content h4 { font-size: 7.5px; font-weight: 900; color: white; margin: 0; }
-        .pi-fitur-content p { font-size: 6px; color: #93c5fd; margin: 0; }
+        .pi-fitur-content h4 { font-size: 10px; font-weight: 900; color: white; margin: 0; }
+        .pi-fitur-content p { font-size: 8px; color: #93c5fd; margin: 0; }
 
         /* Planet Map Container (Optimized Mobile height) */
         .pi-map-wrapper {
@@ -321,6 +327,14 @@ export default function TunarunguMode({
           padding: 12px;
           width: 100%;
         }
+        .pi-guide-header {
+          font-size: 9px;
+          font-weight: 900;
+          color: white;
+          letter-spacing: 1px;
+          border-bottom: 1px solid rgba(255,255,255,0.1);
+          padding-bottom: 4px;
+        }
         .pi-video-window {
           background: #020617;
           border-radius: 14px;
@@ -340,12 +354,12 @@ export default function TunarunguMode({
           bottom: 0;
           left: 0;
           right: 0;
-          background: rgba(0,0,0,0.8);
+          background: rgba(0,0,0,0.85);
           color: white;
-          font-size: 7.5px;
+          font-size: 8px;
           font-weight: 800;
           text-align: center;
-          padding: 3px;
+          padding: 4px;
         }
         .pi-controls-row {
           display: flex;
@@ -366,8 +380,8 @@ export default function TunarunguMode({
         .pi-kamus-block {
           background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
           border-radius: 14px;
-          padding: 6px 12px;
-          font-size: 8px;
+          padding: 8px 12px;
+          font-size: 9px;
           font-weight: 900;
           color: white;
           display: flex;
@@ -376,6 +390,7 @@ export default function TunarunguMode({
           cursor: pointer;
           border: none;
           width: 100%;
+          margin-top: 8px;
         }
 
         .pi-status-bar {
@@ -386,12 +401,13 @@ export default function TunarunguMode({
           display: flex;
           align-items: center;
           justify-content: space-between;
+          margin-top: 8px;
         }
         .pi-status-title { font-size: 7.5px; font-weight: 900; color: var(--accent-yellow); display: flex; align-items: center; gap: 4px; }
         .pi-status-val { font-size: 7px; font-weight: 800; color: #93c5fd; }
 
         /* Progress utility */
-        .pi-progress-bar-bg { width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 10px; margin-top: 4px; overflow: hidden; }
+        .pi-progress-bar-bg { width: 100%; height: 5px; background: rgba(255,255,255,0.1); border-radius: 10px; margin-top: 4px; overflow: hidden; }
         .pi-progress-bar-fill { height: 100%; background: var(--accent-blue); transition: width 0.3s; }
 
         /* Learning flow: Horizontal scrollable card container */
@@ -399,29 +415,29 @@ export default function TunarunguMode({
           background: rgba(255, 255, 255, 0.02);
           border: 1.5px solid rgba(59, 130, 246, 0.15);
           border-radius: 20px;
-          padding: 10px;
+          padding: 12px;
           width: 100%;
         }
         .pi-scroll-header {
-          font-size: 9px;
+          font-size: 9.5px;
           font-weight: 900;
           color: var(--accent-yellow);
           text-align: center;
-          margin-bottom: 8px;
+          margin-bottom: 10px;
           text-transform: uppercase;
         }
         .pi-scroll-cards {
           display: flex;
-          gap: 10px;
+          gap: 12px;
           overflow-x: auto;
-          padding-bottom: 6px;
+          padding-bottom: 8px;
           scrollbar-width: thin;
         }
         .pi-scroll-cards::-webkit-scrollbar { height: 4px; }
         .pi-scroll-cards::-webkit-scrollbar-thumb { background: rgba(59, 130, 246, 0.3); border-radius: 10px; }
         
         .pi-scroll-card {
-          flex: 0 0 140px;
+          flex: 0 0 145px;
           background: white;
           color: #1e293b;
           border-radius: 16px;
@@ -430,7 +446,87 @@ export default function TunarunguMode({
           display: flex;
           flex-direction: column;
           position: relative;
+          gap: 4px;
         }
+        .pi-alur-num {
+          position: absolute;
+          top: -6px;
+          left: 10px;
+          width: 15px;
+          height: 15px;
+          background: var(--accent-yellow);
+          color: #78350f;
+          font-weight: 900;
+          font-size: 8px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .pi-alur-title { font-size: 8.5px; font-weight: 900; color: #1e40af; margin-top: 4px; }
+        .pi-alur-desc { font-size: 7px; color: #64748b; line-height: 1.2; }
+        
+        .pi-preview-mini {
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 10px;
+          padding: 4px;
+          margin-top: 4px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .pi-preview-sub { font-size: 6.5px; font-weight: bold; color: #475569; }
+
+        .pi-preview-plant {
+          background: #f0fdf4;
+          border: 1px solid #bbf7d0;
+          border-radius: 10px;
+          padding: 4px;
+          margin-top: 4px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .pi-plant-tags { display: flex; flex-direction: column; gap: 1px; }
+        .pi-plant-tag { font-size: 5.5px; background: #dcfce7; color: #15803d; padding: 0.5px 3px; border-radius: 3px; font-weight: bold; }
+
+        .pi-preview-quiz {
+          background: #fffbeb;
+          border: 1px solid #fde68a;
+          border-radius: 10px;
+          padding: 4px;
+          margin-top: 4px;
+        }
+        .pi-quiz-options-box { display: flex; gap: 3px; justify-content: center; }
+        .pi-quiz-opt { background: white; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 10px; width: 22px; height: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .pi-quiz-opt.correct { background: #d1fae5; border-color: #34d399; }
+
+        .pi-preview-gift {
+          background: #eff6ff;
+          border: 1px solid #bfdbfe;
+          border-radius: 10px;
+          padding: 6px;
+          margin-top: 4px;
+          text-align: center;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+        .pi-gift-img { font-size: 12px; }
+        .pi-gift-txt { font-size: 6.5px; font-weight: bold; color: #1d4ed8; }
+
+        .pi-preview-lock {
+          border-radius: 10px;
+          padding: 6px;
+          margin-top: 4px;
+          text-align: center;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+        .pi-lock-img { font-size: 12px; }
+        .pi-lock-txt { font-size: 6.5px; font-weight: bold; color: #475569; }
 
         /* 3-card grid (Vertically Stacked for Mobile) */
         .pi-vertical-panels {
@@ -447,7 +543,59 @@ export default function TunarunguMode({
           box-shadow: 0 6px 15px rgba(0,0,0,0.25);
           display: flex;
           flex-direction: column;
+          gap: 8px;
         }
+        .pi-bottom-card-title { font-size: 9.5px; font-weight: 900; color: var(--accent-yellow); border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 4px; margin-bottom: 4px; }
+        .pi-materi-theme { font-size: 8.5px; font-weight: 800; color: #93c5fd; }
+
+        /* Visual plant diagram mockup */
+        .pi-plant-diagram-box {
+          background: rgba(255,255,255,0.02);
+          border: 1px solid rgba(255,255,255,0.06);
+          border-radius: 12px;
+          padding: 6px;
+          display: flex;
+          gap: 8px;
+          align-items: center;
+        }
+        .pi-diagram-img {
+          width: 45px;
+          height: 65px;
+          background: white;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 2.2rem;
+        }
+        .pi-diagram-labels {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          flex: 1;
+        }
+        .pi-diagram-lbl-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 7.5px;
+          border-bottom: 1px solid rgba(255,255,255,0.05);
+          padding-bottom: 1px;
+        }
+        .pi-diagram-lbl-name { font-weight: 800; color: white; }
+        .pi-diagram-lbl-desc { color: #93c5fd; font-size: 6.5px; }
+
+        .pi-ringkasan-box {
+          background: rgba(16, 185, 129, 0.08);
+          border: 1px solid rgba(16, 185, 129, 0.2);
+          border-radius: 12px;
+          padding: 8px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .pi-ringkasan-icon { font-size: 1.2rem; }
+        .pi-ringkasan-txt { font-size: 7.5px; color: #a7f3d0; leading-height: 1.3; }
 
         /* Matching lines canvas layout */
         .pi-matcher-container {
@@ -455,41 +603,110 @@ export default function TunarunguMode({
           display: flex;
           justify-content: space-between;
           gap: 16px;
-          margin-top: 8px;
-          min-height: 140px;
+          margin-top: 4px;
+          min-height: 120px;
         }
         .pi-matcher-col {
           display: flex;
           flex-direction: column;
           justify-content: space-around;
-          gap: 6px;
+          gap: 8px;
           z-index: 10;
         }
-
-        /* Footer Nav bar mobile */
-        .pi-mobile-nav {
-          background: #0f122c;
-          border-top: 2px solid rgba(59,130,246,0.2);
-          border-radius: 16px;
-          display: grid;
-          grid-template-cols: repeat(6, 1fr);
-          padding: 6px;
+        .pi-lines-svg {
+          position: absolute;
+          inset: 0;
           width: 100%;
+          height: 100%;
+          pointer-events: none;
+          z-index: 5;
         }
-        .pi-nav-icon-btn {
-          background: none;
-          border: none;
-          color: #94a3b8;
-          font-size: 7.5px;
-          font-weight: 800;
+        .pi-match-item {
+          width: 32px;
+          height: 32px;
+          background: rgba(255,255,255,0.06);
+          border: 1.5px solid rgba(255,255,255,0.15);
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           cursor: pointer;
+          transition: all 0.2s;
+        }
+        .pi-match-item:hover { border-color: var(--accent-blue); background: rgba(59,130,246,0.1); }
+        .pi-match-item.selected { border-color: var(--accent-yellow); background: rgba(251,191,36,0.15); }
+        .pi-match-item.correct { border-color: var(--accent-green); background: rgba(16,185,129,0.15); }
+        .pi-match-item.wrong { border-color: #ef4444; background: rgba(239,68,68,0.15); }
+
+        .pi-match-name {
+          background: rgba(255,255,255,0.06);
+          border: 1.5px solid rgba(255,255,255,0.15);
+          color: white;
+          font-size: 8px;
+          font-weight: 800;
+          padding: 4px 10px;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: all 0.2s;
+          min-width: 60px;
+          text-align: center;
+        }
+        .pi-match-name:hover { border-color: var(--accent-blue); background: rgba(59,130,246,0.1); }
+        .pi-match-name.selected { border-color: var(--accent-yellow); background: rgba(251,191,36,0.15); }
+        .pi-match-name.correct { border-color: var(--accent-green); background: rgba(16,185,129,0.15); color: #a7f3d0; }
+
+        .pi-kristal-grid {
+          display: grid;
+          grid-template-cols: repeat(3, 1fr);
+          gap: 6px;
+        }
+        .pi-kristal-card {
+          background: rgba(255,255,255,0.03);
+          border: 1px solid rgba(255,255,255,0.06);
+          border-radius: 10px;
+          padding: 6px;
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 1px;
+          gap: 2px;
+        }
+        .pi-kristal-name { font-size: 6.5px; font-weight: bold; color: #94a3b8; }
+
+        /* Footer Nav bar mobile */
+        .pi-mobile-nav {
+          background: #0f122c !important;
+          border-top: 2px solid rgba(59,130,246,0.2) !important;
+          border-radius: 16px !important;
+          display: flex !important;
+          flex-direction: row !important;
+          justify-content: space-around !important;
+          align-items: center !important;
+          padding: 8px 4px !important;
+          width: 100% !important;
+          margin-top: 8px !important;
+        }
+        .pi-nav-icon-btn {
+          background: none !important;
+          border: none !important;
+          color: #94a3b8 !important;
+          font-size: 8px !important;
+          font-weight: 800 !important;
+          cursor: pointer !important;
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: center !important;
+          gap: 2px !important;
+          flex: 1 !important;
+          text-decoration: none !important;
         }
         .pi-nav-icon-btn.active {
-          color: var(--accent-yellow);
+          color: var(--accent-yellow) !important;
+        }
+        body.mode-tunanetra .pi-nav-icon-btn span {
+          color: inherit !important;
+        }
+        body.mode-tunanetra .pi-nav-icon-btn.active span {
+          color: var(--accent-yellow) !important;
         }
 
         @keyframes float {
@@ -520,7 +737,7 @@ export default function TunarunguMode({
               </div>
             </div>
             <p className="pi-subtitle-desc">
-              "Planet yang seluruh penduduknya berkomunikasi dengan bahasa isyarat."
+              Planet yang seluruh penduduknya berkomunikasi dengan bahasa isyarat.
             </p>
           </header>
 
@@ -534,35 +751,35 @@ export default function TunarunguMode({
 
           {/* Fitur Utama List */}
           <div className="pi-fitur-list">
-            <div onClick={() => setActiveZone('kampung')} className="pi-fitur-card">
+            <div onClick={() => { playClickSound(480); setActiveZone('kampung'); }} className="pi-fitur-card">
               <span className="pi-fitur-icon-circle">📹</span>
               <div className="pi-fitur-content">
-                <h4>Video Isyarat</h4>
-                <p>Belajar BISINDO</p>
+                <h4>Video Bahasa Isyarat</h4>
+                <p>Belajar dengan bahasa isyarat (BISINDO)</p>
               </div>
             </div>
 
-            <div onClick={() => setActiveZone('perpustakaan')} className="pi-fitur-card">
+            <div onClick={() => { playClickSound(520); setActiveZone('perpustakaan'); }} className="pi-fitur-card">
               <span className="pi-fitur-icon-circle">Aa</span>
               <div className="pi-fitur-content">
-                <h4>Teks Subtitle</h4>
-                <p>Semua video bersubtitle</p>
+                <h4>Subtitle Otomatis</h4>
+                <p>Semua video dilengkapi subtitle</p>
               </div>
             </div>
 
-            <div onClick={() => setActiveZone('studio')} className="pi-fitur-card">
+            <div onClick={() => { playClickSound(560); setActiveZone('studio'); }} className="pi-fitur-card">
               <span className="pi-fitur-icon-circle">🖼️</span>
               <div className="pi-fitur-content">
-                <h4>Ilustrasi</h4>
-                <p>Infografis visual</p>
+                <h4>Ilustrasi & Infografis</h4>
+                <p>Materi mudah dipahami dengan gambar</p>
               </div>
             </div>
 
-            <div onClick={() => setActiveZone('arena')} className="pi-fitur-card">
-              <span className="pi-fitur-icon-circle">⭐</span>
+            <div onClick={() => { playClickSound(600); setActiveZone('arena'); }} className="pi-fitur-card">
+              <span className="pi-fitur-icon-circle">💎</span>
               <div className="pi-fitur-content">
-                <h4>Kristal Isyarat</h4>
-                <p>Kumpulkan kristal</p>
+                <h4>Koleksi Kristal Isyarat</h4>
+                <p>Kumpulkan kristal untuk membuka materi baru</p>
               </div>
             </div>
           </div>
@@ -579,13 +796,13 @@ export default function TunarunguMode({
             </div>
 
             <div onClick={() => { setActiveZone('perpustakaan'); playClickSound(580); }} className="pi-map-loc pi-loc-perpustakaan">
-              <h5>Perpustakaan</h5>
+              <h5>Perpustakaan Visual</h5>
               <p>Materi bergambar & teks</p>
             </div>
 
             <div onClick={() => { setActiveZone('studio'); playClickSound(620); }} className="pi-map-loc pi-loc-studio">
               <h5>Studio Ilustrasi</h5>
-              <p>Pahami lewat gambar</p>
+              <p>Pahami materi lewat gambar</p>
             </div>
 
             <div onClick={() => { setActiveZone('arena'); playClickSound(700); }} className="pi-map-loc pi-loc-arena">
@@ -614,8 +831,8 @@ export default function TunarunguMode({
               </button>
             </div>
 
-            <button onClick={() => setIsKamusOpen(true)} className="pi-kamus-block">
-              <span>📖 KAMUS ISYARAT BISINDO</span>
+            <button onClick={() => { playClickSound(500); setIsKamusOpen(true); }} className="pi-kamus-block">
+              <span>🤟 KAMUS ISYARAT BISINDO</span>
               <span>&rarr;</span>
             </button>
 
@@ -632,10 +849,10 @@ export default function TunarunguMode({
 
       {/* VIEW B: ACTIVE LANDMARK SUB-ZONE */}
       {activeZone !== 'main' && (
-        <div className="bg-[#1b163e] rounded-2xl p-4 border border-[#8b5cf6] relative z-20">
-          <div className="flex justify-between items-center border-b border-purple-500/20 pb-2 mb-3">
+        <div className="bg-[#1b163e] rounded-2xl p-4 border border-[#3b82f6] relative z-20">
+          <div className="flex justify-between items-center border-b border-blue-500/20 pb-2 mb-3">
             <h4 className="font-extrabold text-[10px] text-[#fbbf24] uppercase">
-              🪐 ZONA: {activeZone}
+              🪐 ZONA: {activeZone === 'kampung' ? 'Kampung Isyarat' : activeZone === 'perpustakaan' ? 'Perpustakaan Visual' : activeZone === 'studio' ? 'Studio Ilustrasi' : 'Arena Tantangan'}
             </h4>
             <button onClick={() => setActiveZone('main')} className="px-3 py-1 bg-rose-600 text-white font-extrabold text-[7.5px] rounded-full">
               Kembali
@@ -645,11 +862,12 @@ export default function TunarunguMode({
           {activeZone === 'kampung' && (
             <div className="space-y-3">
               <p className="text-[9px] text-sky-200">Belajar bahasa isyarat (BISINDO) langsung dari video interaktif!</p>
-              <div className="bg-slate-950 p-3 rounded-xl text-center text-4xl min-h-[100px] flex items-center justify-center border">
-                <span>👋🧑‍🏫</span>
+              <div className="pi-video-window">
+                <span className="pi-video-avatar">👩‍🏫</span>
+                <span className="pi-video-sub-bar">Selamat pagi teman-teman!</span>
               </div>
-              <p className="text-[8.5px] text-slate-300 leading-relaxed bg-slate-900/60 p-2 rounded-lg">
-                "Untuk isyarat **Kucing**, gerakkan jempol dan telunjuk dari dekat pipi ke samping menyerupai kumis kucing."
+              <p className="text-[8.5px] text-slate-300 leading-relaxed bg-slate-900/60 p-2.5 rounded-lg">
+                "Untuk isyarat **Bumi**, satukan ujung jari kedua tangan membentuk lingkaran, lalu putar pelan ke depan seperti bola dunia."
               </p>
             </div>
           )}
@@ -657,10 +875,10 @@ export default function TunarunguMode({
           {activeZone === 'perpustakaan' && (
             <div className="space-y-2">
               <p className="text-[9px] text-sky-200">Perpustakaan Visual: Baca kisah interaktif dengan bahasa isyarat.</p>
-              <div className="bg-slate-950/60 p-3 rounded-xl border border-purple-500/20">
-                <h5 className="font-bold text-[9px] text-amber-400 mb-1">Mengenal Planet Kita</h5>
+              <div className="bg-slate-950/60 p-3 rounded-xl border border-blue-500/20">
+                <h5 className="font-bold text-[9px] text-amber-400 mb-1">Mengenal Bagian Bunga</h5>
                 <p className="text-[8.5px] text-slate-300 leading-relaxed">
-                  "Bumi adalah tempat tinggal yang sangat indah. Kita memiliki air melimpah dan udara yang bersih untuk bernafas."
+                  "Bunga memiliki bagian yang sangat indah seperti mahkota bunga yang harum, putik, benang sari, dan tangkai bunga sebagai penyokong."
                 </p>
               </div>
             </div>
@@ -669,9 +887,9 @@ export default function TunarunguMode({
           {activeZone === 'studio' && (
             <div className="space-y-2">
               <p className="text-[9px] text-sky-200">Studio Ilustrasi: Memahami bagian tanaman secara visual.</p>
-              <div className="bg-slate-950/60 p-3 rounded-xl border border-purple-500/20 flex gap-3 items-center">
+              <div className="bg-slate-950/60 p-3 rounded-xl border border-blue-500/20 flex gap-3 items-center">
                 <span className="text-4xl bg-white p-2 rounded-lg">🌻</span>
-                <div className="text-[8px] text-slate-300 space-y-1">
+                <div className="text-[8.5px] text-slate-300 space-y-1">
                   <div>🍃 <b>Daun:</b> Melakukan fotosintesis.</div>
                   <div>🌸 <b>Bunga:</b> Membantu reproduksi biji.</div>
                   <div>🪵 <b>Akar:</b> Menyerap nutrisi tanah.</div>
@@ -683,7 +901,7 @@ export default function TunarunguMode({
           {activeZone === 'arena' && (
             <div className="text-center py-2 space-y-2">
               <span className="text-3xl">🏆</span>
-              <h5 className="font-extrabold text-[9px] text-purple-300">Arena Tantangan Aktif!</h5>
+              <h5 className="font-extrabold text-[9px] text-blue-300">Arena Tantangan Aktif!</h5>
               <p className="text-[8px] text-slate-300 max-w-[240px] mx-auto leading-relaxed">
                 Pilih jawaban benar pada kuis kartu nomor 3 di bawah untuk menguji kemampuanmu dan mendapatkan kristal!
               </p>
@@ -696,18 +914,18 @@ export default function TunarunguMode({
       <section className="pi-scroll-container">
         <h3 className="pi-scroll-header">ALUR BELAJAR DI PLANET ISYARAT</h3>
         <div className="pi-scroll-cards">
-          {/* Card 1 */}
+          {/* Card 1: Tonton Video */}
           <div className="pi-scroll-card">
             <span className="pi-alur-num">1</span>
-            <h4 className="pi-alur-title">TONTON VIDEO</h4>
-            <p className="pi-alur-desc">Tonton video bahasa isyarat BISINDO.</p>
+            <h4 className="pi-alur-title">TONTON VIDEO ISYARAT</h4>
+            <p className="pi-alur-desc">Tonton video bahasa isyarat tentang materi.</p>
             <div className="pi-preview-mini">
               <span>👩‍🏫</span>
-              <span className="pi-preview-sub">Sign Guide</span>
+              <span className="pi-preview-sub">BISINDO Guide</span>
             </div>
           </div>
 
-          {/* Card 2 */}
+          {/* Card 2: Pahami melalui Ilustrasi */}
           <div className="pi-scroll-card">
             <span className="pi-alur-num">2</span>
             <h4 className="pi-alur-title">PAHAMI MATERI</h4>
@@ -716,15 +934,16 @@ export default function TunarunguMode({
               <span className="pi-plant-img">🌱</span>
               <div className="pi-plant-tags">
                 <span className="pi-plant-tag">Daun</span>
+                <span className="pi-plant-tag">Bunga</span>
                 <span className="pi-plant-tag">Akar</span>
               </div>
             </div>
           </div>
 
-          {/* Card 3 */}
+          {/* Card 3: Kerjakan Tantangan */}
           <div className="pi-scroll-card">
             <span className="pi-alur-num">3</span>
-            <h4 className="pi-alur-title">TANTANGAN KUIS</h4>
+            <h4 className="pi-alur-title">KERJAKAN TANTANGAN</h4>
             <p className="pi-alur-desc">Manakah gambar kucing?</p>
             <div className="pi-preview-quiz">
               <div className="pi-quiz-options-box">
@@ -735,25 +954,25 @@ export default function TunarunguMode({
             </div>
           </div>
 
-          {/* Card 4 */}
+          {/* Card 4: Dapatkan Kristal */}
           <div className="pi-scroll-card">
             <span className="pi-alur-num">4</span>
-            <h4 className="pi-alur-title">KRISTAL DI TANGAN</h4>
-            <p className="pi-alur-desc">Dapatkan bonus kristal kosmik.</p>
+            <h4 className="pi-alur-title">DAPATKAN KRISTAL</h4>
+            <p className="pi-alur-desc">Jawaban benar! Kamu mendapat Kristal.</p>
             <div className="pi-preview-gift">
               <span className="pi-gift-img">💎</span>
               <span className="pi-gift-txt">{quizCompleted ? '+1 Kristal!' : 'Belum Kuis'}</span>
             </div>
           </div>
 
-          {/* Card 5 */}
+          {/* Card 5: Buka Materi Baru */}
           <div className="pi-scroll-card">
             <span className="pi-alur-num">5</span>
-            <h4 className="pi-alur-title">BUKA MATERI</h4>
-            <p className="pi-alur-desc">Buka bab baru setelah 20 Kristal.</p>
+            <h4 className="pi-alur-title">BUKA MATERI BARU</h4>
+            <p className="pi-alur-desc">Butuh 20 Kristal untuk membuka materi rahasia.</p>
             <div className="pi-preview-lock" style={{ background: crystalCount >= 20 ? '#d1fae5' : '#f1f5f9' }}>
               <span className="pi-lock-img">{crystalCount >= 20 ? '🔓' : '🔒'}</span>
-              <span className="pi-lock-txt">{crystalCount >= 20 ? 'Hewan Terbuka' : '20 Kristal'}</span>
+              <span className="pi-lock-txt">{crystalCount >= 20 ? 'Terbuka' : '20 Kristal'}</span>
             </div>
           </div>
         </div>
@@ -765,17 +984,35 @@ export default function TunarunguMode({
         <div className="pi-panel-mobile">
           <h4 className="pi-bottom-card-title">CONTOH MATERI</h4>
           <span className="pi-materi-theme">TEMA: TUMBUHAN</span>
-          <div className="grid grid-cols-2 gap-2 mb-2">
-            <div className="bg-slate-900 rounded-lg p-1.5 flex items-center justify-center text-xl h-14 border">
-              <span>👩‍🏫</span>
-            </div>
-            <div className="bg-white rounded-lg p-1.5 flex flex-col items-center justify-center border h-14">
-              <span className="text-xl">🌻</span>
+          
+          <div className="pi-plant-diagram-box">
+            <div className="pi-diagram-img">🌻</div>
+            <div className="pi-diagram-labels">
+              <div className="pi-diagram-lbl-row">
+                <span className="pi-diagram-lbl-name">🍃 daun</span>
+                <span className="pi-diagram-lbl-desc">fotosintesis</span>
+              </div>
+              <div className="pi-diagram-lbl-row">
+                <span className="pi-diagram-lbl-name">🌸 bunga</span>
+                <span className="pi-diagram-lbl-desc">reproduksi</span>
+              </div>
+              <div className="pi-diagram-lbl-row">
+                <span className="pi-diagram-lbl-name">🪵 batang</span>
+                <span className="pi-diagram-lbl-desc">saluran nutrisi</span>
+              </div>
+              <div className="pi-diagram-lbl-row">
+                <span className="pi-diagram-lbl-name">🌱 akar</span>
+                <span className="pi-diagram-lbl-desc">penyerap air</span>
+              </div>
             </div>
           </div>
-          <p className="text-[8px] text-slate-300 leading-relaxed bg-slate-950/40 p-2 rounded-lg">
-            <b>Tumbuhan</b> membuat makanannya sendiri melalui cahaya matahari. Bagian tanaman bekerja sama membantu kelangsungan hidupnya.
-          </p>
+
+          <div className="pi-ringkasan-box">
+            <span className="pi-ringkasan-icon">💡</span>
+            <p className="pi-ringkasan-txt">
+              <b>Ringkasan:</b> Tumbuhan memiliki bagian-bagian penting yang membantu mereka tumbuh dengan baik.
+            </p>
+          </div>
         </div>
 
         {/* Column 2: Tantangan Visual */}
@@ -785,12 +1022,12 @@ export default function TunarunguMode({
           
           <div className="pi-matcher-container">
             <svg className="pi-lines-svg">
-              {pairings.daun && <line x1="20%" y1="18%" x2="80%" y2="82%" stroke="#10b981" strokeWidth="2" />}
-              {pairings.akar && <line x1="20%" y1="50%" x2="80%" y2="18%" stroke="#10b981" strokeWidth="2" />}
-              {pairings.bunga && <line x1="20%" y1="82%" x2="80%" y2="50%" stroke="#10b981" strokeWidth="2" />}
+              {pairings.daun && <line x1="16%" y1="20%" x2="84%" y2="80%" stroke="#10b981" strokeWidth="2.5" />}
+              {pairings.akar && <line x1="16%" y1="50%" x2="84%" y2="20%" stroke="#10b981" strokeWidth="2.5" />}
+              {pairings.bunga && <line x1="16%" y1="80%" x2="84%" y2="50%" stroke="#10b981" strokeWidth="2.5" />}
             </svg>
 
-            {/* Left elements */}
+            {/* Left elements (Images) */}
             <div className="pi-matcher-col items-start">
               <div onClick={() => handleImageSelect('daun')} className={`pi-match-item ${selectedImage === 'daun' ? 'selected' : ''} ${pairings.daun ? 'correct' : ''}`}>
                 <span className="text-xl">🍃</span>
@@ -803,7 +1040,7 @@ export default function TunarunguMode({
               </div>
             </div>
 
-            {/* Right elements */}
+            {/* Right elements (Names) */}
             <div className="pi-matcher-col items-end">
               <button onClick={() => handleNameSelect('Akar')} className={`pi-match-name ${selectedName === 'Akar' ? 'selected' : ''} ${Object.values(pairings).includes('Akar') ? 'correct' : ''}`}>Akar</button>
               <button onClick={() => handleNameSelect('Bunga')} className={`pi-match-name ${selectedName === 'Bunga' ? 'selected' : ''} ${Object.values(pairings).includes('Bunga') ? 'correct' : ''}`}>Bunga</button>
@@ -811,7 +1048,7 @@ export default function TunarunguMode({
             </div>
           </div>
 
-          <button onClick={resetPairings} className="py-1 bg-slate-800 text-white font-bold text-[7.5px] rounded-lg mt-2">
+          <button onClick={resetPairings} className="py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-[8px] rounded-lg mt-2 transition-colors">
             Reset Pasangan
           </button>
         </div>
@@ -829,7 +1066,7 @@ export default function TunarunguMode({
           </div>
           <div className="mt-2 text-center">
             <p className="text-[7.5px] text-slate-300 font-semibold mb-1">
-              {crystalCount >= 20 ? 'Materi rahasia terbuka!' : `Butuh ${20 - crystalCount} Kristal lagi untuk materi rahasia.`}
+              {crystalCount >= 20 ? 'Materi rahasia terbuka!' : `Kumpulkan ${20 - crystalCount} Kristal lagi untuk membuka materi rahasia!`}
             </p>
             <div className="pi-progress-bar-bg">
               <div className="pi-progress-bar-fill" style={{ width: `${(crystalCount / 50) * 100}%` }}></div>
@@ -851,7 +1088,7 @@ export default function TunarunguMode({
           <span>🏠</span><span>Beranda</span>
         </div>
         <div onClick={() => setActiveZone('kampung')} className={`pi-nav-icon-btn ${activeZone === 'kampung' ? 'active' : ''}`} role="button">
-          <span>🤟</span><span>Isyarat</span>
+          <span>🤟</span><span>Kampung Isyarat</span>
         </div>
         <div onClick={() => setActiveZone('perpustakaan')} className={`pi-nav-icon-btn ${activeZone === 'perpustakaan' ? 'active' : ''}`} role="button">
           <span>📖</span><span>Perpustakaan</span>
@@ -862,13 +1099,13 @@ export default function TunarunguMode({
         <div onClick={() => setActiveZone('arena')} className={`pi-nav-icon-btn ${activeZone === 'arena' ? 'active' : ''}`} role="button">
           <span>🏆</span><span>Arena</span>
         </div>
-        <div onClick={() => { playClickSound(800); }} className="pi-nav-icon-btn" role="button">
-          <span>⚙️</span><span>Setelan</span>
+        <div onClick={() => { stopAdhdCamera(); setSelectedMode(null); }} className="pi-nav-icon-btn" role="button">
+          <span>⚙️</span><span>Keluar</span>
         </div>
       </footer>
 
       <p className="pi-slogan">
-        ⚡ BELAJAR DENGAN ISYARAT, MEMAHAMI DENGAN VISUAL, MERAIH PRESTASI! ⚡
+        ★ BELAJAR DENGAN ISYARAT, MEMAHAMI DENGAN VISUAL, MERAIH PRESTASI! ★
       </p>
 
       {/* KAMUS ISYARAT MODAL */}

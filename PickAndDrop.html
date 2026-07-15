@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Disaster Ready - Responsive Edition</title>
+    <!-- MediaPipe Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <style>
+        :root {
+            --primary: #2ecc71;
+            --secondary: #3498db;
+            --danger: #e74c3c;
+            --dark: #2c3e50;
+            --light: #ecf0f1;
+            --accent: #f1c40f;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f4f8;
+            color: var(--dark);
+            overflow: hidden; /* Prevent bounce scrolling on mobile */
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            height: -webkit-fill-available; /* Support for iOS Safari viewport height */
+        }
+
+        html {
+            height: -webkit-fill-available;
+        }
+
+        header {
+            background: white;
+            padding: 0.8rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+
+        .header-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--dark);
+            margin: 0;
+        }
+
+        .stats {
+            display: flex;
+            gap: 1rem;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
+        /* Responsive Layout Engine */
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: row; /* Desktop Default */
+            position: relative;
+            padding: 15px;
+            gap: 15px;
+            overflow: hidden;
+        }
+
+        /* Sidebar for Webcam (Desktop) */
+        .sidebar {
+            width: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .video-container {
+            width: 100%;
+            aspect-ratio: 4/3;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        #input_video { display: none; }
+        #output_canvas {
+            width: 100%;
+            height: 100%;
+            transform: scaleX(-1); /* Mirror for natural movement */
+            object-fit: cover;
+        }
+
+        .instructions {
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+
+        .instructions h3 { margin-top: 0; color: var(--secondary); font-size: 1rem; }
+        .instructions ul { padding-left: 1.2rem; margin-bottom: 0; }
+
+        /* Game Area */
+        .game-wrapper {
+            flex: 1;
+            position: relative;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #game_canvas {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            cursor: none;
+            touch-action: none; /* Disable browser gestures on canvas */
+        }
+
+        /* Mobile Adjustments (Portrait and small screens) */
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+                padding: 10px;
+                gap: 10px;
+            }
+
+            .sidebar {
+                width: 100%;
+                flex-direction: row;
+                height: 120px;
+            }
+
+            .video-container {
+                width: 160px;
+                height: 100%;
+            }
+
+            .instructions {
+                flex: 1;
+                font-size: 0.75rem;
+                padding: 10px;
+            }
+            
+            .header-title { font-size: 1rem; }
+            .stats { font-size: 0.9rem; }
+        }
+
+        /* Orientation Warning */
+        @media (max-height: 450px) and (orientation: landscape) {
+            .instructions { display: none; }
+            .sidebar { width: 150px; }
+        }
+
+        /* Feedback Toast */
+        #feedback {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            border-radius: 50px;
+            color: white;
+            font-weight: bold;
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
+            z-index: 101;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            text-align: center;
+            width: 80%;
+            max-width: 400px;
+            font-size: 0.9rem;
+        }
+
+        .feedback-correct { background: var(--primary); opacity: 1 !important; top: 25px !important; }
+        .feedback-wrong { background: var(--danger); opacity: 1 !important; top: 25px !important; }
+
+        /* Overlays */
+        .overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.96);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .btn {
+            padding: 15px 40px;
+            font-size: 1.1rem;
+            background: var(--secondary);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 20px;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn:active { transform: scale(0.95); }
+
+        #loading_screen { background: var(--dark); color: white; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="header-title">Disaster Ready</div>
+    <div class="stats">
+        <div>📦 <span id="collected">0</span>/<span id="total_needed">0</span></div>
+        <div>⏱️ <span id="timer">60</span>s</div>
+    </div>
+</header>
+
+<div class="main-container">
+    <div class="sidebar">
+        <div class="video-container">
+            <video id="input_video" playsinline></video>
+            <canvas id="output_canvas"></canvas>
+        </div>
+        <div class="instructions">
+            <h3>Mission</h3>
+            <ul>
+                <li>Pack <b>all essentials</b>.</li>
+                <li><b>Pinch</b> fingers to grab.</li>
+                <li><b>One wrong item</b> = Failed.</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="game-wrapper" id="game_bounds">
+        <div id="feedback">Feedback Message</div>
+        <canvas id="game_canvas"></canvas>
+
+        <!-- Loading Screen -->
+        <div id="loading_screen" class="overlay">
+            <h1>Scanning Environment...</h1>
+            <p>Initializing dual-hand AI tracking</p>
+        </div>
+
+        <!-- Start Screen -->
+        <div id="start_screen" class="overlay hidden">
+            <h1>Are you prepared?</h1>
+            <p>Use your hands to pack the emergency bag.<br>Only collect what is essential.</p>
+            <button class="btn" onclick="startGame()">Start Game</button>
+        </div>
+
+        <!-- Lose Screen -->
+        <div id="lose_screen" class="overlay hidden">
+            <h1 style="color: var(--danger)">CRITICAL ERROR</h1>
+            <p id="lose_reason" style="font-weight: 500;"></p>
+            <button class="btn" onclick="location.reload()">Retry Mission</button>
+        </div>
+
+        <!-- Win Screen -->
+        <div id="win_screen" class="overlay hidden">
+            <h1 style="color: var(--primary)">BAG PREPARED</h1>
+            <p>Excellent work. You are ready for the unexpected.</p>
+            <button class="btn" onclick="location.reload()">Next Scenario</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    /**
+     * DISASTER EMERGENCY BAG GAME - RESPONSIVE DUAL-HAND EDITION
+     */
+
+    const ESSENTIAL_ITEMS = [
+        { name: 'Water', emoji: '💧', essential: true, fact: 'You need 3.5L per day.' },
+        { name: 'Food', emoji: '🥫', essential: true, fact: 'Choose high-calorie items.' },
+        { name: 'Light', emoji: '🔦', essential: true, fact: 'Backup batteries are key.' },
+        { name: 'Med Kit', emoji: '🩹', essential: true, fact: 'Treat injuries to stay mobile.' },
+        { name: 'Raincoat', emoji: '🧥', essential: true, fact: 'Protects from wet and wind.' },
+        { name: 'Mask', emoji: '😷', essential: true, fact: 'Filters dust from debris.' }
+    ];
+
+    const USELESS_ITEMS = [
+        { name: 'Teddy', emoji: '🧸', essential: false },
+        { name: 'Guitar', emoji: '🎸', essential: false },
+        { name: 'Laptop', emoji: '💻', essential: false },
+        { name: 'Heels', emoji: '👠', essential: false }
+    ];
+
+    // --- State ---
+    let gameActive = false;
+    let timeLeft = 60;
+    let timerInterval = null;
+    let spawnedItems = [];
+    let itemsCollected = 0;
+    let totalEssential = ESSENTIAL_ITEMS.length;
+
+    // Dual Hand States
+    const handStates = [
+        { x: 0, y: 0, pinching: false, grabbedItem: null, color: '#3498db' },
+        { x: 0, y: 0, pinching: false, grabbedItem: null, color: '#2ecc71' }
+    ];
+
+    const PINCH_THRESHOLD = 0.055;
+
+    // --- UI Elements ---
+    const gameCanvas = document.getElementById('game_canvas');
+    const gCtx = gameCanvas.getContext('2d');
+    const outCanvas = document.getElementById('output_canvas');
+    const outCtx = outCanvas.getContext('2d');
+    const videoElement = document.getElementById('input_video');
+
+    // --- Responsive Scaling Logic ---
+    function getResponsiveItemSize() {
+        // Items scale based on the smaller dimension of the canvas
+        const baseSize = Math.min(gameCanvas.width, gameCanvas.height);
+        return Math.max(65, baseSize * 0.12);
+    }
+
+    function resize() {
+        const bounds = document.getElementById('game_bounds');
+        gameCanvas.width = bounds.clientWidth;
+        gameCanvas.height = bounds.clientHeight;
+        
+        // Output canvas for webcam remains small for performance
+        outCanvas.width = 320;
+        outCanvas.height = 240;
+
+        // Reposition items if they fall out of bounds during resize
+        spawnedItems.forEach(it => {
+            it.x = Math.min(it.x, gameCanvas.width - 50);
+            it.y = Math.min(it.y, gameCanvas.height - 180);
+        });
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // --- MediaPipe Setup ---
+    const hands = new Hands({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+    });
+
+    hands.setOptions({
+        maxNumHands: 2,
+        modelComplexity: 0, // Lower complexity for better mobile performance
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+    });
+
+    hands.onResults(onResults);
+
+    // Optimized camera handling for mobile
+    const camera = new Camera(videoElement, {
+        onFrame: async () => { await hands.send({ image: videoElement }); },
+        width: { ideal: 640 },
+        height: { ideal: 480 },
+        facingMode: 'user'
+    });
+
+    camera.start().then(() => {
+        document.getElementById('loading_screen').classList.add('hidden');
+        document.getElementById('start_screen').classList.remove('hidden');
+    });
+
+    // --- Tracking Logic ---
+    function onResults(results) {
+        outCtx.save();
+        outCtx.clearRect(0, 0, outCanvas.width, outCanvas.height);
+        outCtx.drawImage(results.image, 0, 0, outCanvas.width, outCanvas.height);
+        
+        if (results.multiHandLandmarks) {
+            results.multiHandLandmarks.forEach((landmarks, index) => {
+                if (index >= 2) return;
+                
+                const indexTip = landmarks[8];
+                const thumbTip = landmarks[4];
+
+                // Global screen mapping (Normalized -> Canvas)
+                const currentX = (1 - indexTip.x) * gameCanvas.width;
+                const currentY = indexTip.y * gameCanvas.height;
+
+                // Pinch math
+                const dist = Math.sqrt(Math.pow(indexTip.x - thumbTip.x, 2) + Math.pow(indexTip.y - thumbTip.y, 2));
+                const isPinching = dist < PINCH_THRESHOLD;
+
+                const wasPinching = handStates[index].pinching;
+                handStates[index].x = currentX;
+                handStates[index].y = currentY;
+                handStates[index].pinching = isPinching;
+
+                if (gameActive) {
+                    if (isPinching && !wasPinching) tryGrab(index);
+                    else if (!isPinching && wasPinching) tryDrop(index);
+                }
+
+                // Small debug markers in mini preview
+                drawConnectors(outCtx, landmarks, HAND_CONNECTIONS, {color: handStates[index].color, lineWidth: 2});
+            });
+        }
+        outCtx.restore();
+    }
+
+    // --- Game Mechanics ---
+    function startGame() {
+        document.getElementById('start_screen').classList.add('hidden');
+        gameActive = true;
+        itemsCollected = 0;
+        timeLeft = 60;
+        spawnedItems = [];
+        
+        document.getElementById('total_needed').innerText = totalEssential;
+        document.getElementById('collected').innerText = "0";
+
+        // Initial Spawn
+        ESSENTIAL_ITEMS.forEach(it => spawnItemInstance(it));
+        for(let i=0; i<4; i++) {
+            spawnItemInstance(USELESS_ITEMS[Math.floor(Math.random() * USELESS_ITEMS.length)]);
+        }
+
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            document.getElementById('timer').innerText = timeLeft;
+            if (timeLeft <= 0) endGame(false, "Time is up!");
+        }, 1000);
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    function spawnItemInstance(template) {
+        const size = getResponsiveItemSize();
+        spawnedItems.push({
+            ...template,
+            x: size + Math.random() * (gameCanvas.width - size*2),
+            y: size + Math.random() * (gameCanvas.height - size*3.5),
+            id: Math.random().toString(36).substr(2, 9)
+        });
+    }
+
+    function tryGrab(handIdx) {
+        const h = handStates[handIdx];
+        if (h.grabbedItem) return;
+
+        const size = getResponsiveItemSize();
+        for (let i = spawnedItems.length - 1; i >= 0; i--) {
+            const it = spawnedItems[i];
+            const dist = Math.sqrt(Math.pow(h.x - it.x, 2) + Math.pow(h.y - it.y, 2));
+            
+            if (dist < size/2 + 10) {
+                // Prevent multi-grab
+                if (!handStates.some(other => other.grabbedItem?.id === it.id)) {
+                    h.grabbedItem = it;
+                    spawnedItems.splice(i, 1);
+                    break;
+                }
+            }
+        }
+    }
+
+    function tryDrop(handIdx) {
+        const h = handStates[handIdx];
+        if (!h.grabbedItem) return;
+
+        const bagHeight = Math.min(180, gameCanvas.height * 0.25);
+        const inBag = h.y > (gameCanvas.height - bagHeight);
+
+        if (inBag) {
+            if (!h.grabbedItem.essential) {
+                endGame(false, `Failure! ${h.grabbedItem.name} takes up precious space.`);
+            } else {
+                itemsCollected++;
+                document.getElementById('collected').innerText = itemsCollected;
+                showFeedback(h.grabbedItem.fact, true);
+                if (itemsCollected === totalEssential) endGame(true);
+            }
+        } else {
+            spawnedItems.push({...h.grabbedItem, x: h.x, y: h.y});
+        }
+        h.grabbedItem = null;
+    }
+
+    function endGame(win, reason = "") {
+        gameActive = false;
+        clearInterval(timerInterval);
+        if (win) document.getElementById('win_screen').classList.remove('hidden');
+        else {
+            document.getElementById('lose_screen').classList.remove('hidden');
+            document.getElementById('lose_reason').innerText = reason;
+        }
+    }
+
+    function showFeedback(text, isCorrect) {
+        const fb = document.getElementById('feedback');
+        fb.innerText = text;
+        fb.className = isCorrect ? 'feedback-correct' : 'feedback-wrong';
+        setTimeout(() => fb.className = '', 3000);
+    }
+
+    // --- Rendering ---
+    function gameLoop() {
+        if (!gameActive) return;
+        gCtx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+
+        const bagHeight = Math.min(180, gameCanvas.height * 0.25);
+        const itemSize = getResponsiveItemSize();
+
+        // Draw Bag Zone
+        const bagY = gameCanvas.height - bagHeight;
+        gCtx.fillStyle = '#f8f9fa';
+        gCtx.fillRect(0, bagY, gameCanvas.width, bagHeight);
+        
+        gCtx.setLineDash([10, 10]);
+        gCtx.strokeStyle = '#ced4da';
+        gCtx.lineWidth = 2;
+        gCtx.strokeRect(15, bagY + 15, gameCanvas.width - 30, bagHeight - 30);
+        gCtx.setLineDash([]);
+
+        gCtx.fillStyle = '#adb5bd';
+        gCtx.font = `bold ${Math.max(14, bagHeight * 0.15)}px Arial`;
+        gCtx.textAlign = 'center';
+        gCtx.fillText('🎒 DROP ESSENTIALS HERE', gameCanvas.width/2, bagY + bagHeight/2 + 5);
+
+        // Draw Items
+        spawnedItems.forEach(it => drawItem(it, itemSize));
+
+        // Draw Hands and Held Items
+        handStates.forEach(h => {
+            if (h.grabbedItem) {
+                h.grabbedItem.x = h.x;
+                h.grabbedItem.y = h.y;
+                drawItem(h.grabbedItem, itemSize, true, h.color);
+            }
+            drawCursor(h);
+        });
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    function drawItem(it, size, held = false, color = '#eee') {
+        gCtx.save();
+        if (held) {
+            gCtx.shadowBlur = 20;
+            gCtx.shadowColor = color;
+        }
+        
+        gCtx.beginPath();
+        gCtx.arc(it.x, it.y, size/2, 0, Math.PI*2);
+        gCtx.fillStyle = 'white';
+        gCtx.fill();
+        gCtx.strokeStyle = held ? color : '#eee';
+        gCtx.lineWidth = 3;
+        gCtx.stroke();
+
+        gCtx.font = `${size * 0.5}px Arial`;
+        gCtx.textAlign = 'center';
+        gCtx.textBaseline = 'middle';
+        gCtx.fillText(it.emoji, it.x, it.y);
+        
+        gCtx.restore();
+    }
+
+    function drawCursor(h) {
+        gCtx.save();
+        const r = h.pinching ? 10 : 20;
+        gCtx.beginPath();
+        gCtx.arc(h.x, h.y, r, 0, Math.PI*2);
+        gCtx.fillStyle = h.color + '33';
+        gCtx.fill();
+        gCtx.strokeStyle = h.color;
+        gCtx.lineWidth = 2;
+        gCtx.stroke();
+        
+        // Inner dot
+        gCtx.beginPath();
+        gCtx.arc(h.x, h.y, 4, 0, Math.PI*2);
+        gCtx.fillStyle = h.color;
+        gCtx.fill();
+        gCtx.restore();
+    }
+
+</script>
+</body>
+</html>
