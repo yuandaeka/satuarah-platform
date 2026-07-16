@@ -62,6 +62,8 @@ export default function ABKUnifiedView({
   startGame, handleAdhdBoardMouseMove, handleAdhdBoardMouseDown, handleAdhdBoardMouseUp,
   handleAdhdBoardTouchMove, handleAdhdBoardTouchStart, handleAdhdBoardTouchEnd,
   earnSparks, sparks,
+  isVideoPlaying, setIsVideoPlaying,
+  isStoryReading, setIsStoryReading,
 }) {
   const [activeTab, setActiveTab] = useState('visual');
   const [activeTopicKey, setActiveTopicKey] = useState('koka');
@@ -85,7 +87,8 @@ export default function ABKUnifiedView({
   const [sukuWord, setSukuWord] = useState({ prefix: '', suffix: 'ju', options: ['ba', 'bi', 'bu', 'be', 'bo'], correct: 'ba', target: 'baju', completed: false });
   const [bangunWord, setBangunWord] = useState({ target: 'kucing', letters: ['u', 'c', 'g', 'k', 'n', 'i'], currentLetters: [], completed: false });
   const [activeWordIndex, setActiveWordIndex] = useState(-1);
-  const [storyReading, setStoryReading] = useState(false);
+  const storyReading = isStoryReading;
+  const setStoryReading = setIsStoryReading;
   const storyText = "Riko punya kelinci. Kelinci itu lucu. Riko memberi makan kelincinya setiap hari.";
   const storyWords = storyText.split(" ");
   const [magicBookWord, setMagicBookWord] = useState('pohon');
@@ -112,7 +115,6 @@ export default function ABKUnifiedView({
     "Jejak kaki para astronot di Bulan tidak akan hilang karena tidak ada angin di sana! 🌕"
   ];
 
-  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
   const videoIntervalRef = useRef(null);
 

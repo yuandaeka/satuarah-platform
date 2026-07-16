@@ -12,6 +12,7 @@ import DisleksiaMode from './pages/modes/DisleksiaMode';
 import ABKUnifiedView from './pages/modes/ABKUnifiedView';
 import { REGULER_LYRICS, TUNANETRA_STORIES, INITIAL_PLANET_CARDS } from './constants';
 import { playTone } from './utils/audio';
+import { setRelaxationMusic, setRelaxationVolume } from './utils/relaxationAudio';
 
 
 export default function App() {
@@ -20,6 +21,16 @@ export default function App() {
   const [username, setUsername] = useState('Yuanda Eka');
   const [selectedAvatar, setSelectedAvatar] = useState('🚀'); // default avatar emoji
   const [currentTab, setCurrentTab] = useState('home'); // 'home' | 'belajar' | 'profile'
+
+  // --- Relaxation Music States ---
+  const [musicEnabled, setMusicEnabled] = useState(false);
+  const [musicType, setMusicType] = useState('none'); // 'none' | 'rain' | 'instrumental' | 'nature'
+  const [musicVolume, setMusicVolume] = useState(0.5);
+  const [musicPanelOpen, setMusicPanelOpen] = useState(false);
+
+  // States to keep track of speech / video playing to dynamically mute/duck the background music
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [isStoryReading, setIsStoryReading] = useState(false);
   
   // --- Active Learning Mode (null means selection grid) ---
   const [selectedMode, setSelectedMode] = useState(null); // 'reguler' | 'adhd' | 'tunarungu' | 'tunanetra' | 'disleksia' | 'abk'
@@ -316,6 +327,28 @@ export default function App() {
       stopSpeaking();
     };
   }, [selectedMode, isLoggedIn, stopSpeaking]);
+
+  // Relaxation Music State Manager Effect
+  useEffect(() => {
+    setRelaxationMusic(musicType, musicEnabled, musicVolume);
+    return () => {
+      setRelaxationMusic('none', false, 0);
+    };
+  }, [musicType, musicEnabled, musicVolume]);
+
+  // Dynamic Music Volume Ducking Effect
+  // Lowers or pauses music when: TTS narrating (isTunanetraNarrating), chatbot typing/speaking (chatbotTyping),
+  // video playing (isVideoPlaying), or karaoke / story reading (karaokePlaying / isStoryReading) is active.
+  useEffect(() => {
+    const shouldDuck = isTunanetraNarrating || chatbotTyping || isVideoPlaying || isStoryReading || karaokePlaying;
+    if (shouldDuck) {
+      // Duck to 5% of current volume
+      setRelaxationVolume(musicVolume * 0.05);
+    } else {
+      // Restore normal volume
+      setRelaxationVolume(musicVolume);
+    }
+  }, [isTunanetraNarrating, chatbotTyping, isVideoPlaying, isStoryReading, karaokePlaying, musicVolume]);
 
   // Start / stop simulated audio player karaoke
   useEffect(() => {
@@ -1298,15 +1331,132 @@ export default function App() {
           </div>
 
           {/* Active Mode Badge indicator */}
-          {selectedMode && (
-            <button
-              onClick={() => { setSelectedMode(null); setRegulerSubMode(null); stopSpeaking(); }}
-              className="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-full border border-emerald-200 text-[9px] font-black uppercase flex items-center gap-1.5 active:scale-95 transition-transform"
-            >
-              <i className="fa-solid fa-arrow-left text-[8px]"></i> {selectedMode}
-            </button>
-          )}
+          <div className="flex items-center gap-1.5">
+            {isLoggedIn && (
+              <button
+                onClick={() => setMusicPanelOpen(true)}
+                className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm shadow-sm transition-all duration-200 ${
+                  musicEnabled && musicType !== 'none'
+                    ? 'bg-amber-100 border-amber-300 text-amber-600 animate-pulse'
+                    : 'bg-slate-50 border-slate-200 text-slate-400'
+                }`}
+                title="Atur Musik Relaksasi"
+              >
+                🎵
+              </button>
+            )}
+
+            {selectedMode && (
+              <button
+                onClick={() => { setSelectedMode(null); setRegulerSubMode(null); stopSpeaking(); }}
+                className="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-full border border-emerald-200 text-[9px] font-black uppercase flex items-center gap-1.5 active:scale-95 transition-transform"
+              >
+                <i className="fa-solid fa-arrow-left text-[8px]"></i> {selectedMode}
+              </button>
+            )}
+          </div>
         </header>
+
+        {/* RELAXATION MUSIC CONTROL DIALOG MODAL */}
+        {musicPanelOpen && (
+          <div className="absolute inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-5 backdrop-blur-sm animate-fadeIn">
+            <div className="bg-white border-4 border-amber-400 rounded-3xl p-5 w-full max-w-[280px] space-y-4 shadow-2xl relative">
+              <button 
+                onClick={() => setMusicPanelOpen(false)}
+                className="absolute top-3 right-3 text-slate-400 hover:text-slate-600 text-base font-black"
+              >
+                ✕
+              </button>
+              
+              <div className="text-center">
+                <span className="text-3xl filter drop-shadow">🍃</span>
+                <h4 className="font-black text-xs text-slate-800 uppercase mt-1">Musik Relaksasi</h4>
+                <p className="text-[8px] text-slate-400 font-bold leading-relaxed">
+                  Membantu ketenangan sensorik anak berkebutuhan khusus selama belajar koding.
+                </p>
+              </div>
+
+              {/* Toggle switch */}
+              <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                <span className="text-[9px] font-black text-slate-600">Aktifkan Musik</span>
+                <button
+                  onClick={() => {
+                    playTone(600, 'sine', 0.05);
+                    const newEnabled = !musicEnabled;
+                    setMusicEnabled(newEnabled);
+                    if (newEnabled && musicType === 'none') {
+                      setMusicType('instrumental');
+                    }
+                  }}
+                  className={`px-3 py-1 rounded-lg text-[8px] font-black border transition-all ${
+                    musicEnabled
+                      ? 'bg-emerald-500 text-white border-emerald-600'
+                      : 'bg-slate-200 text-slate-500 border-slate-350'
+                  }`}
+                >
+                  {musicEnabled ? 'AKTIF' : 'MATI'}
+                </button>
+              </div>
+
+              {/* Sound Options List */}
+              <div className="space-y-1.5">
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block">Pilihan Jenis Suara:</span>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {[
+                    { id: 'none', label: '🔇 Tanpa Musik', emoji: 'Mute' },
+                    { id: 'rain', label: '🌧️ Suara Hujan', emoji: 'Rain' },
+                    { id: 'nature', label: '🌲 Suara Alam', emoji: 'Nature' },
+                    { id: 'instrumental', label: '🎹 Instrumental', emoji: 'Soft' }
+                  ].map(sound => (
+                    <button
+                      key={sound.id}
+                      onClick={() => {
+                        playTone(550, 'sine', 0.05);
+                        setMusicType(sound.id);
+                        if (sound.id === 'none') {
+                          setMusicEnabled(false);
+                        } else {
+                          setMusicEnabled(true);
+                        }
+                      }}
+                      className={`py-2 rounded-xl text-[8.5px] font-black border-2 transition-all ${
+                        musicType === sound.id && musicEnabled
+                          ? 'bg-amber-100 border-amber-400 text-amber-800 shadow-sm scale-[1.02]'
+                          : 'bg-slate-50 border-slate-100 text-slate-600 hover:border-slate-200'
+                      }`}
+                    >
+                      {sound.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Volume Slider */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center text-[8.5px] font-black text-slate-500">
+                  <span>🔊 KEKUATAN VOLUME</span>
+                  <span>{Math.round(musicVolume * 100)}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={musicVolume}
+                  onChange={(e) => setMusicVolume(parseFloat(e.target.value))}
+                  className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                />
+              </div>
+
+              <button
+                onClick={() => setMusicPanelOpen(false)}
+                className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-2.5 rounded-2xl text-[9px] uppercase shadow-md active:scale-95 transition-all cursor-pointer border-b-3 border-amber-700"
+              >
+                Selesai Pengaturan
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ============================================================== */}
         {/* VIEW 1: SPLASH & LOGIN CONTAINER */}
@@ -1557,6 +1707,10 @@ export default function App() {
                 handleAdhdBoardTouchEnd={handleAdhdBoardTouchEnd}
                 earnSparks={earnSparks}
                 sparks={sparks}
+                isVideoPlaying={isVideoPlaying}
+                setIsVideoPlaying={setIsVideoPlaying}
+                isStoryReading={isStoryReading}
+                setIsStoryReading={setIsStoryReading}
               />
             )}
             
