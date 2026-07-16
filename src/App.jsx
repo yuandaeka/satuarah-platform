@@ -100,31 +100,12 @@ export default function App() {
 
   // --- Profile, statistics, and Badges ---
   const [walletTokens, setWalletTokens] = useState(3);
-  const streakDays = 5;
-  const learningDuration = 45; // in minutes
-  const [unlockedBadges, setUnlockedBadges] = useState({
-    reguler: true,
-    adhd: false,
-    tunarungu: false,
-    tunanetra: false,
-    disleksia: false
+  const [sparks, setSparks] = useState(() => {
+    const saved = localStorage.getItem('satuarah_sparks');
+    return saved ? parseInt(saved, 10) : 50; // starts with 50 sparks
   });
-  const [blockchainLogs, setBlockchainLogs] = useState([
-    { timestamp: '10:04', text: 'Sistem Belajar SatuArah Siap' },
-    { timestamp: '10:15', text: 'Berhasil Mendapatkan Lencana: Lencana Reguler' }
-  ]);
-  const [activeBadgeToMint, setActiveBadgeToMint] = useState(null);
-  const [mintingStatusText, setMintingStatusText] = useState('');
-  const [isMintingModalOpen, setIsMintingModalOpen] = useState(false);
-
-  // --- Chatbot floating state ---
-  const [chatOpen, setChatOpen] = useState(false);
-  const [chatInput, setChatInput] = useState('');
-  const [chatMessages, setChatMessages] = useState([
-    { sender: 'ai', text: 'Halo! Saya adalah AI Advisor SatuArah. Tanyakan apa saja seputar tips belajar adaptif, kurikulum inklusif, atau cara menangani anak berkebutuhan khusus.' }
-  ]);
-  const [chatbotTyping, setChatbotTyping] = useState(false);
-
+  const [sparkToast, setSparkToast] = useState({ show: false, amount: 0, reason: '' });
+  
   // Speech Synthesizer reference with Google TTS fallback
   const speakText = useCallback((text, forceMode = false, rate = 1.0) => {
     const playTtsFallback = (txt) => {
@@ -221,6 +202,93 @@ export default function App() {
     }
     setIsTunanetraNarrating(false);
   }, []);
+
+  // Spark Awarding System with Motivational Audio & Confetti
+  const earnSparks = useCallback((amount, type) => {
+    // Save to State & LocalStorage
+    setSparks(prev => {
+      const nextSparks = prev + amount;
+      localStorage.setItem('satuarah_sparks', nextSparks.toString());
+      return nextSparks;
+    });
+
+    // Fireworks confetti effect
+    confetti({
+      particleCount: 40,
+      spread: 60,
+      origin: { y: 0.7 }
+    });
+
+    let motivationText = "";
+    let reasonText = "";
+    
+    switch(type) {
+      case 'complete_slide':
+        motivationText = "Hebat! Kamu berhasil menyelesaikan tantangan.";
+        reasonText = "Menyelesaikan Materi";
+        break;
+      case 'retry_quiz':
+        motivationText = "Tidak apa-apa jika belum benar. Ayo coba sekali lagi.";
+        reasonText = "Mencoba Kembali";
+        break;
+      case 'complete_challenge':
+        motivationText = "Hebat! Kamu berhasil menyelesaikan tantangan.";
+        reasonText = "Menyelesaikan Tantangan";
+        break;
+      case 'listen_full':
+        motivationText = "Bagus sekali, kamu sudah mencoba.";
+        reasonText = "Mendengarkan Seluruh Materi";
+        break;
+      case 'follow_instruction':
+        motivationText = "Bagus sekali, kamu sudah mencoba.";
+        reasonText = "Berhasil Mengikuti Instruksi";
+        break;
+      case 'consistent':
+        motivationText = "Kamu semakin pintar menyusun perintah.";
+        reasonText = "Belajar Secara Konsisten";
+        break;
+      default:
+        motivationText = "Bagus sekali! Pertahankan belajarmu.";
+        reasonText = "Usaha Belajar";
+    }
+
+    // Play motivational voice
+    speakText(motivationText, true);
+
+    // Show Sparks Reward Toast
+    setSparkToast({ show: true, amount, reason: reasonText });
+    setTimeout(() => {
+      setSparkToast(prev => ({ ...prev, show: false }));
+    }, 3500);
+
+  }, [speakText]);
+
+  const streakDays = 5;
+  const learningDuration = 45; // in minutes
+  const [unlockedBadges, setUnlockedBadges] = useState({
+    reguler: true,
+    adhd: false,
+    tunarungu: false,
+    tunanetra: false,
+    disleksia: false
+  });
+  const [blockchainLogs, setBlockchainLogs] = useState([
+    { timestamp: '10:04', text: 'Sistem Belajar SatuArah Siap' },
+    { timestamp: '10:15', text: 'Berhasil Mendapatkan Lencana: Lencana Reguler' }
+  ]);
+  const [activeBadgeToMint, setActiveBadgeToMint] = useState(null);
+  const [mintingStatusText, setMintingStatusText] = useState('');
+  const [isMintingModalOpen, setIsMintingModalOpen] = useState(false);
+
+  // --- Chatbot floating state ---
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const [chatMessages, setChatMessages] = useState([
+    { sender: 'ai', text: 'Halo! Saya adalah AI Advisor SatuArah. Tanyakan apa saja seputar tips belajar adaptif, kurikulum inklusif, atau cara menangani anak berkebutuhan khusus.' }
+  ]);
+  const [chatbotTyping, setChatbotTyping] = useState(false);
+
+
 
   // Blockchain Badge Minting Trigger
   const triggerBadgeMinting = useCallback((modeKey) => {
@@ -1329,6 +1397,7 @@ export default function App() {
                 renderedStreakDays={renderedStreakDays}
                 renderedDuration={renderedDuration}
                 walletTokens={walletTokens}
+                sparks={sparks}
                 speakText={speakText}
                 setSelectedMode={setSelectedMode}
                 setCurrentTab={setCurrentTab}
@@ -1359,6 +1428,7 @@ export default function App() {
                 triggerBadgeMinting={triggerBadgeMinting}
                 speakText={speakText}
                 setSelectedMode={setSelectedMode}
+                earnSparks={earnSparks}
               />
             )}
             {/* SUB-VIEW B.2: MODE ADHD */}
@@ -1485,6 +1555,8 @@ export default function App() {
                 handleAdhdBoardTouchMove={handleAdhdBoardTouchMove}
                 handleAdhdBoardTouchStart={handleAdhdBoardTouchStart}
                 handleAdhdBoardTouchEnd={handleAdhdBoardTouchEnd}
+                earnSparks={earnSparks}
+                sparks={sparks}
               />
             )}
             
@@ -1498,6 +1570,8 @@ export default function App() {
                 stopSpeaking={stopSpeaking}
                 unlockedBadges={unlockedBadges}
                 blockchainLogs={blockchainLogs}
+                sparks={sparks}
+                setSparks={setSparks}
               />
             )}
             </main>
@@ -1672,6 +1746,21 @@ export default function App() {
                   Simpan Lencana Belajar
                 </button>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* FLOATING SPARK SATUARAH TOAST (SUPER CELEBRATORY & NEON NGEJRENG) */}
+        {sparkToast.show && (
+          <div className="absolute top-20 left-4 right-4 z-50 animate-bounce">
+            <div className="bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 border-4 border-amber-800 rounded-3xl p-4 shadow-[0_8px_0_#9a3412] text-center flex flex-col items-center justify-center space-y-1">
+              <span className="text-3xl animate-pulse">✨ Sparks! ✨</span>
+              <h4 className="text-[12px] font-black text-amber-950 uppercase tracking-widest leading-none">
+                +{sparkToast.amount} SPARK SATUARAH
+              </h4>
+              <p className="text-[9px] text-amber-900 font-extrabold bg-white/40 px-3 py-0.5 rounded-full">
+                🎯 {sparkToast.reason}
+              </p>
             </div>
           </div>
         )}

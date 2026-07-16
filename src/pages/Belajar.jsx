@@ -40,14 +40,14 @@ export default function Belajar({ setSelectedMode, voiceGuide, speakText }) {
             </div>
           </div>
 
-          {/* Kelas ABK Card — now directly enters ABK unified mode */}
+          {/* Kelas Inklusi Card — now directly enters ABK unified mode */}
           <div 
             onClick={() => {
               confetti();
-              speakText("Membuka Kelas Inspirasi ABK dengan mode belajar adaptif.");
+              speakText("Membuka Kelas Inklusi dengan mode belajar adaptif.");
               setSelectedMode('abk');
             }}
-            className="bubbly-card rounded-3xl p-5 border-2 hover:border-purple-400 bg-gradient-to-r from-purple-500 to-indigo-600 text-white cursor-pointer transform hover:-translate-y-1 transition-all duration-300 relative overflow-hidden group shadow-md"
+            className="bubbly-card rounded-3xl p-5 border-2 hover:border-blue-400 bg-gradient-to-r from-blue-500 to-indigo-600 text-white cursor-pointer transform hover:-translate-y-1 transition-all duration-300 relative overflow-hidden group shadow-md"
           >
             <div className="absolute right-4 top-2 text-7xl opacity-10 select-none font-bold group-hover:scale-110 transition-transform">🧩</div>
             <div className="flex items-start gap-3.5 relative z-10">
@@ -56,10 +56,10 @@ export default function Belajar({ setSelectedMode, voiceGuide, speakText }) {
               </div>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <h5 className="font-black text-xs uppercase tracking-wide">Kelas Inspirasi ABK</h5>
-                  <span className="bg-white/25 text-white text-[7px] font-extrabold px-2 py-0.5 rounded-full uppercase">Kebutuhan Khusus</span>
+                  <h5 className="font-black text-xs uppercase tracking-wide">Kelas Inklusi</h5>
+                  <span className="bg-white/25 text-white text-[7px] font-extrabold px-2 py-0.5 rounded-full uppercase">Inklusif</span>
                 </div>
-                <p className="text-[9px] text-purple-50/90 leading-relaxed font-semibold">
+                <p className="text-[9px] text-blue-50/90 leading-relaxed font-semibold">
                   Pembelajaran koding & AI adaptif dengan 5 gaya belajar: Visual, Audio, Teori, Praktik & Modul interaktif.
                 </p>
                 <div className="pt-1.5 flex items-center gap-1 text-[8.5px] font-black text-yellow-300 group-hover:translate-x-1 transition-transform">

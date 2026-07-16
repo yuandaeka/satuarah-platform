@@ -8,6 +8,7 @@ export default function Home({
   renderedStreakDays,
   renderedDuration,
   walletTokens,
+  sparks = 50,
   speakText,
   setSelectedMode,
   setCurrentTab,
@@ -40,7 +41,10 @@ export default function Home({
           {selectedAvatar}
         </div>
         <div>
-          <span className="bg-emerald-100 text-emerald-800 text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-emerald-200">Level 4 AI Explorer</span>
+          <div className="flex gap-1.5 items-center">
+            <span className="bg-emerald-100 text-emerald-800 text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-emerald-200">Level 4 AI Explorer</span>
+            <span className="bg-amber-500 text-white text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full shadow-[0_2px_0_#b45309]">✨ {sparks} Spark</span>
+          </div>
           <h3 className="font-extrabold text-slate-800 mt-1 leading-tight">{username}</h3>
           <p className="text-[9px] text-slate-500 font-medium leading-relaxed">Junior Coding & AI Specialist</p>
         </div>
@@ -64,11 +68,11 @@ export default function Home({
             onClick={() => { playTone(600, 'sine', 0.05); setStatsCategory('abk'); }}
             className={`flex-1 py-2 text-[9px] font-black rounded-xl transition-all cursor-pointer ${
               statsCategory === 'abk'
-                ? 'bg-purple-500 text-white shadow-md'
+                ? 'bg-blue-500 text-white shadow-md'
                 : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
             }`}
           >
-            🧩 Kelas Inspirasi ABK
+            🧩 Kelas Inklusi
           </button>
         </div>
       </div>

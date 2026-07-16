@@ -61,6 +61,7 @@ export default function ABKUnifiedView({
   stopAdhdCamera, startAdhdCamera, adhdVideoRef, adhdOverlayCanvasRef, adhdGameCanvasRef,
   startGame, handleAdhdBoardMouseMove, handleAdhdBoardMouseDown, handleAdhdBoardMouseUp,
   handleAdhdBoardTouchMove, handleAdhdBoardTouchStart, handleAdhdBoardTouchEnd,
+  earnSparks, sparks,
 }) {
   const [activeTab, setActiveTab] = useState('visual');
   const [activeTopicKey, setActiveTopicKey] = useState('koka');
@@ -158,32 +159,46 @@ export default function ABKUnifiedView({
     if (focusRunning && modulView === 'fokus') {
       timer = setInterval(() => {
         setFocusTime(prev => {
-          if (prev <= 1) { clearInterval(timer); setFocusRunning(false); playSound(600, 0.4); confetti({ particleCount: 30, spread: 60 }); return 300; }
+          if (prev <= 1) {
+            clearInterval(timer);
+            setFocusRunning(false);
+            playSound(600, 0.4);
+            if (typeof earnSparks === 'function') earnSparks(15, 'complete_challenge');
+            return 300;
+          }
           return prev - 1;
         });
       }, 1000);
     }
     return () => { if (timer) clearInterval(timer); };
-  }, [focusRunning, modulView]);
+  }, [focusRunning, modulView, earnSparks]);
 
   useEffect(() => {
     if (isVideoPlaying && modulView === 'video') {
       videoIntervalRef.current = setInterval(() => {
         setVideoProgress(prev => {
-          if (prev >= 100) { setIsVideoPlaying(false); clearInterval(videoIntervalRef.current); confetti({ particleCount: 20, spread: 40 }); return 0; }
+          if (prev >= 100) {
+            setIsVideoPlaying(false);
+            clearInterval(videoIntervalRef.current);
+            if (typeof earnSparks === 'function') earnSparks(10, 'listen_full');
+            return 0;
+          }
           return prev + 2;
         });
       }, 300);
     } else { if (videoIntervalRef.current) clearInterval(videoIntervalRef.current); }
     return () => { if (videoIntervalRef.current) clearInterval(videoIntervalRef.current); };
-  }, [isVideoPlaying, modulView]);
+  }, [isVideoPlaying, modulView, earnSparks]);
 
   const handleQuizAnswer = (isCorrect) => {
     if (isCorrect) {
       playSound(523.25, 0.15); setTimeout(() => playSound(659.25, 0.25), 150);
-      confetti(); speakText("Luar biasa! Jawabanmu benar sekali!", true, audioSpeed);
+      if (typeof earnSparks === 'function') earnSparks(15, 'complete_challenge');
       triggerBadgeMinting('abk');
-    } else { playSound(220, 0.3); speakText("Kurang tepat, ayo coba lagi ya!", true, audioSpeed); }
+    } else {
+      playSound(220, 0.3);
+      if (typeof earnSparks === 'function') earnSparks(5, 'retry_quiz');
+    }
   };
 
   const handleAudioReplay = () => {
@@ -210,9 +225,10 @@ export default function ABKUnifiedView({
     if (opt === sukuWord.correct) {
       setSukuWord(prev => ({ ...prev, prefix: opt, completed: true }));
       setWordCount(prev => Math.min(100, prev + 5));
-      confetti({ particleCount: 30, spread: 60, origin: { y: 0.6 } });
-      speakText("Hebat! Baju!");
-    } else { speakText("Coba lagi ya."); }
+      if (typeof earnSparks === 'function') earnSparks(15, 'complete_challenge');
+    } else {
+      if (typeof earnSparks === 'function') earnSparks(5, 'retry_quiz');
+    }
   };
 
   const handleLetterClick = (letter) => {
@@ -226,10 +242,11 @@ export default function ABKUnifiedView({
       setBangunWord(prev => ({ ...prev, currentLetters: newLetters, completed: done }));
       if (done) {
         setWordCount(prev => Math.min(100, prev + 8));
-        confetti({ particleCount: 30, spread: 60, origin: { y: 0.6 } });
-        speakText("Hebat! Kucing!");
+        if (typeof earnSparks === 'function') earnSparks(15, 'complete_challenge');
       }
-    } else { speakText("Huruf belum tepat, coba lagi."); }
+    } else {
+      if (typeof earnSparks === 'function') earnSparks(5, 'retry_quiz');
+    }
   };
 
   const readEntireStory = () => {
@@ -237,17 +254,28 @@ export default function ABKUnifiedView({
     setStoryReading(true);
     let currentWord = 0;
     const interval = setInterval(() => {
-      if (currentWord >= storyWords.length) { clearInterval(interval); setStoryReading(false); setActiveWordIndex(-1); }
+      if (currentWord >= storyWords.length) {
+        clearInterval(interval);
+        setStoryReading(false);
+        setActiveWordIndex(-1);
+        if (typeof earnSparks === 'function') earnSparks(10, 'listen_full');
+      }
       else { setActiveWordIndex(currentWord); speakText(storyWords[currentWord].replace(/[.,]/g, '')); currentWord++; }
     }, 450);
   };
 
-  const handleWordClick = (word, index) => { playSound(580, 0.12); setActiveWordIndex(index); speakText(word.replace(/[.,]/g, '')); };
+  const handleWordClick = (word, index) => {
+    playSound(580, 0.12);
+    setActiveWordIndex(index);
+    speakText(word.replace(/[.,]/g, ''));
+    if (typeof earnSparks === 'function') earnSparks(5, 'follow_instruction');
+  };
+
   const handleMagicBookUnlock = () => {
     if (rightPageUnlocked) return;
     playSound(580, 0.12); setRightPageUnlocked(true);
     setWordCount(prev => Math.min(100, prev + 15));
-    confetti({ particleCount: 30, spread: 50, origin: { y: 0.6 } }); speakText("Halaman buku terbuka!");
+    if (typeof earnSparks === 'function') earnSparks(15, 'complete_challenge');
   };
   const resetSukuGame = () => setSukuWord({ prefix: '', suffix: 'ju', options: ['ba', 'bi', 'bu', 'be', 'bo'], correct: 'ba', target: 'baju', completed: false });
   const resetBangunGame = () => setBangunWord({ target: 'kucing', letters: ['u', 'c', 'g', 'k', 'n', 'i'], currentLetters: [], completed: false });
@@ -259,9 +287,10 @@ export default function ABKUnifiedView({
     if (selectedHardware.category === slotType) {
       setHardwareSlots(prev => ({ ...prev, [slotType]: [...prev[slotType], selectedHardware] }));
       setHardwareItems(prev => prev.filter(it => it.id !== selectedHardware.id));
-      confetti({ particleCount: 15, spread: 45 });
-      speakText("Bagus! Penempatan tepat.");
-    } else { speakText("Coba lagi ya, kategori perangkat belum sesuai."); }
+      if (typeof earnSparks === 'function') earnSparks(10, 'follow_instruction');
+    } else {
+      if (typeof earnSparks === 'function') earnSparks(5, 'retry_quiz');
+    }
     setSelectedHardware(null);
   };
   const resetHardwareGame = () => {
@@ -292,90 +321,276 @@ export default function ABKUnifiedView({
   };
 
   return (
-    <div className="space-y-4 text-slate-800 p-1.5">
-      <div className="flex justify-between items-center bg-white/90 backdrop-blur border border-slate-100 px-3.5 py-3 rounded-2.5xl shadow-sm">
-        <button onClick={() => { playSound(440, 0.1); setSelectedMode(null); }} className="w-8 h-8 bg-white hover:bg-slate-100 !text-slate-600 border border-slate-200/80 rounded-full flex items-center justify-center text-xs font-black shadow-sm active:scale-95 transition-all cursor-pointer">&larr;</button>
-        <span className="border bg-purple-100 border-purple-200 !text-purple-700 text-[8.5px] font-black px-4 py-1.5 rounded-full uppercase tracking-wider shadow-sm">🧩 Kelas Inspirasi ABK</span>
+    <div className="space-y-5 text-slate-800 p-2 bg-gradient-to-b from-blue-50/50 to-indigo-50/30 rounded-3.5xl">
+      {/* HEADER */}
+      <div className="flex justify-between items-center bg-white border-4 border-blue-500 px-4 py-3.5 rounded-3xl shadow-[0_6px_0_#1d4ed8]">
+        <button onClick={() => { playSound(440, 0.1); setSelectedMode(null); }} className="w-10 h-10 bg-rose-500 hover:bg-rose-600 !text-white border-b-4 border-rose-700 rounded-2xl flex items-center justify-center text-lg font-black active:translate-y-1 active:border-b-0 transition-all cursor-pointer">&larr;</button>
+        <span className="bg-blue-600 !text-white text-[11px] font-black px-5 py-2 rounded-2xl uppercase tracking-wider shadow-inner animate-pulse">🧩 KELAS INKLUSI</span>
       </div>
-      <div className="bg-white px-3.5 py-2.5 rounded-2.5xl border border-slate-100 shadow-sm flex items-center justify-between gap-3">
-        <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider flex-shrink-0">Materi:</span>
-        <select value={activeTopicKey} onChange={(e) => { playSound(600, 0.05); setActiveTopicKey(e.target.value); setVisualSlide(0); setTeoriStage(0); }} className="flex-1 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[9px] font-black !text-slate-700 outline-none cursor-pointer">
+
+      {/* TOPIC SELECTOR */}
+      <div className="bg-white px-4 py-3 rounded-3xl border-4 border-blue-400 shadow-[0_6px_0_#2563eb] flex items-center justify-between gap-3">
+        <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest flex-shrink-0">PILIH MATERI:</span>
+        <select value={activeTopicKey} onChange={(e) => { playSound(600, 0.05); setActiveTopicKey(e.target.value); setVisualSlide(0); setTeoriStage(0); }} className="flex-1 px-3 py-2 bg-blue-50 border-2 border-blue-200 rounded-2xl text-[10px] font-black !text-blue-900 outline-none cursor-pointer">
           {Object.keys(TOPICS).map(key => <option key={key} value={key}>{TOPICS[key].name}</option>)}
         </select>
       </div>
-      <div className="grid grid-cols-5 gap-1.5 bg-slate-200/60 p-1.5 rounded-3xl border border-slate-300/40 shadow-inner">
+
+      {/* 5 TABS SELECTOR (3D BUBBLE STYLE) */}
+      <div className="grid grid-cols-5 gap-2 bg-slate-200/80 p-2.5 rounded-[2.2rem] border-4 border-slate-300 shadow-inner">
         {[
-          { id: 'visual', label: '🎨 Visual', color: 'bg-emerald-500 text-white shadow-emerald-500/30' },
-          { id: 'audio', label: '🔊 Audio', color: 'bg-indigo-500 text-white shadow-indigo-500/30' },
-          { id: 'teori', label: '📖 Teori', color: 'bg-purple-500 text-white shadow-purple-500/30' },
-          { id: 'praktik', label: '🕹️ Praktik', color: 'bg-pink-500 text-white shadow-pink-500/30' },
-          { id: 'modul', label: '📚 Modul', color: 'bg-amber-500 text-white shadow-amber-500/30' }
+          { id: 'visual', label: '🎨 Visual', activeClass: 'bg-blue-600 border-blue-800 shadow-[0_6px_0_#1e40af] text-white', inactiveClass: 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50' },
+          { id: 'audio', label: '🔊 Audio', activeClass: 'bg-amber-500 border-amber-700 shadow-[0_6px_0_#b45309] text-white', inactiveClass: 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50' },
+          { id: 'teori', label: '📖 Teori', activeClass: 'bg-blue-600 border-blue-800 shadow-[0_6px_0_#1e40af] text-white', inactiveClass: 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50' },
+          { id: 'praktik', label: '🕹️ Praktik', activeClass: 'bg-emerald-600 border-emerald-800 shadow-[0_6px_0_#047857] text-white', inactiveClass: 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50' },
+          { id: 'modul', label: '📚 Modul', activeClass: 'bg-blue-600 border-blue-800 shadow-[0_6px_0_#1e40af] text-white', inactiveClass: 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50' }
         ].map(tab => (
-          <button key={tab.id} onClick={() => { playSound(600, 0.08); setActiveTab(tab.id); setPraktikGame(null); setModulView(null); }} className={`py-3 rounded-2xl text-[8px] font-black transition-all cursor-pointer ${activeTab === tab.id ? `${tab.color} text-white shadow-lg scale-102` : 'bg-white hover:bg-slate-50 !text-slate-600 border border-slate-200 shadow-sm active:scale-95'}`}>{tab.label}</button>
+          <button
+            key={tab.id}
+            onClick={() => { playSound(600, 0.08); setActiveTab(tab.id); setPraktikGame(null); setModulView(null); }}
+            className={`py-3.5 rounded-2.5xl text-[10px] font-black border-2 border-b-4 transition-all cursor-pointer ${
+              activeTab === tab.id
+                ? `${tab.activeClass} -translate-y-0.5 scale-102`
+                : `${tab.inactiveClass} active:translate-y-0.5`
+            }`}
+          >{tab.label}</button>
         ))}
       </div>
-      <div className="bg-slate-50/50 rounded-3.5xl border border-slate-200/50 p-1">
+
+      {/* WORKSPACE AREA CONTAINER WITH BOLD 3D BLUE SHADOW */}
+      <div className="bg-white rounded-[2.5rem] border-4 border-blue-600 p-4 shadow-[0_8px_0_#2563eb] min-h-[400px]">
+        {/* ==================== VISUAL ==================== */}
         {activeTab === 'visual' && (
-          <div className="space-y-4 animate-fadeIn">
-            <div className="flex gap-2 justify-center bg-white p-2 rounded-2xl border border-slate-100 shadow-sm">
-              {[ { id: 'kompleks', label: '📊 Visual Kompleks' }, { id: 'sederhana', label: '🌸 Kontras Lembut' }, { id: 'singkat', label: '📝 Singkat Padat' } ].map(opt => (
-                <button key={opt.id} onClick={() => { playSound(480, 0.05); setVisualMode(opt.id); }} className={`px-3 py-1.5 rounded-xl text-[8px] font-black border transition-all ${visualMode === opt.id ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm' : 'bg-slate-50 border-slate-200 !text-slate-500'}`}>{opt.label}</button>
+          <div className="space-y-5 animate-fadeIn">
+            {/* Visual Type Switches (High Contrast 3D) */}
+            <div className="flex gap-2.5 justify-center bg-blue-50 p-2 rounded-2.5xl border-2 border-blue-200">
+              {[
+                { id: 'kompleks', label: '📊 Visual Kompleks', activeColor: 'bg-emerald-500 border-emerald-700 shadow-[0_4px_0_#047857]' },
+                { id: 'sederhana', label: '🌸 Kontras Lembut', activeColor: 'bg-pink-500 border-pink-700 shadow-[0_4px_0_#be185d]' },
+                { id: 'singkat', label: '📝 Singkat Padat', activeColor: 'bg-amber-500 border-amber-700 shadow-[0_4px_0_#b45309]' }
+              ].map(opt => (
+                <button
+                  key={opt.id}
+                  onClick={() => { playSound(480, 0.05); setVisualMode(opt.id); }}
+                  className={`px-4 py-2 rounded-xl text-[9px] font-black border-2 border-b-4 transition-all ${
+                    visualMode === opt.id
+                      ? `${opt.activeColor} text-white -translate-y-0.5`
+                      : 'bg-white border-slate-300 !text-slate-700 active:translate-y-0.5'
+                  }`}
+                >{opt.label}</button>
               ))}
             </div>
-            <div className="bubbly-card p-5 rounded-3xl bg-white border-2 text-center space-y-4 shadow-md">
+
+            {/* Bubbly Content Card */}
+            <div className="p-5 rounded-3xl bg-blue-50/30 border-4 border-blue-300 text-center space-y-4 shadow-inner">
               {visualMode === 'kompleks' && (
-                <div className="w-full h-36 bg-slate-900 rounded-2.5xl flex flex-col items-center justify-center p-3 shadow-inner border border-slate-800 space-y-2 animate-fadeIn">
-                  {visualSlide === 2 ? (<><span className="text-4xl animate-bounce">🏆⭐</span><span className="text-[8.5px] font-black text-amber-400 uppercase tracking-wider">Tantangan Kuis</span></>) : (<><span className="text-4xl animate-float">{activeTopic.slides[visualSlide].emoji}</span><span className="text-[7.5px] text-emerald-400 font-black uppercase tracking-wider">{activeTopic.badge}</span><div className="flex gap-1 items-center mt-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span><span className="w-6 h-0.5 bg-slate-700"></span><span className="w-2 h-2 rounded-full bg-indigo-500"></span></div></>)}
+                <div className="w-full h-40 bg-slate-950 rounded-2.5xl flex flex-col items-center justify-center p-3 shadow-inner border-2 border-blue-500 space-y-2 animate-fadeIn">
+                  {visualSlide === 2 ? (
+                    <div className="text-center"><span className="text-5xl animate-bounce block">🏆⭐</span><span className="text-[10px] font-black text-yellow-300 uppercase tracking-widest">Tantangan Kuis</span></div>
+                  ) : (
+                    <>
+                      <span className="text-5xl animate-float">{activeTopic.slides[visualSlide].emoji}</span>
+                      <span className="text-[9px] text-emerald-400 font-black uppercase tracking-wider">{activeTopic.badge}</span>
+                      <div className="flex gap-1.5 items-center mt-1"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span><span className="w-8 h-0.5 bg-slate-700"></span><span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span></div>
+                    </>
+                  )}
                 </div>
               )}
               {visualMode === 'sederhana' && (
-                <div className="w-full h-36 bg-pink-50/50 rounded-2.5xl flex flex-col items-center justify-center p-3 border border-pink-100 space-y-2 animate-fadeIn"><span className="text-5xl opacity-80">{activeTopic.slides[visualSlide].emoji}</span><span className="text-[8.5px] text-pink-500 font-black uppercase tracking-wider">Tema Lembut</span></div>
+                <div className="w-full h-40 bg-pink-100/50 rounded-2.5xl flex flex-col items-center justify-center p-3 border-2 border-pink-300 space-y-2 animate-fadeIn">
+                  <span className="text-6xl opacity-90">{activeTopic.slides[visualSlide].emoji}</span>
+                  <span className="text-[10px] text-pink-600 font-black uppercase tracking-wider">Tema Kontras Lembut</span>
+                </div>
               )}
               {visualMode === 'singkat' && (
-                <div className="w-full min-h-[9rem] bg-amber-50/40 rounded-2.5xl flex flex-col justify-center p-4 border border-amber-200/60 text-left space-y-2 animate-fadeIn"><span className="text-xs font-black text-amber-700 border-b border-amber-200 pb-1 flex items-center gap-1.5"><span>💡 Inti Materi:</span></span><ul className="space-y-1.5 text-[9px] font-extrabold text-amber-900/90 list-disc list-inside"><li>Fokus materi: {activeTopic.slides[visualSlide].title}</li><li>{activeTopic.slides[visualSlide].text.substring(0, 70)}...</li><li>Selesaikan kuis untuk klaim badge.</li></ul></div>
+                <div className="w-full min-h-[10rem] bg-amber-100/40 rounded-2.5xl flex flex-col justify-center p-5 border-2 border-amber-300 text-left space-y-2 animate-fadeIn">
+                  <span className="text-sm font-black text-amber-800 border-b-2 border-amber-200 pb-1.5 flex items-center gap-1.5">
+                    <span>💡 Inti Materi Ringkas:</span>
+                  </span>
+                  <ul className="space-y-2 text-[10px] font-black text-amber-900/90 list-disc list-inside">
+                    <li>Materi Pokok: {activeTopic.slides[visualSlide].title}</li>
+                    <li>Detail: {activeTopic.slides[visualSlide].text}</li>
+                    <li>Selesaikan kuis interaktif untuk mendapatkan hadiah badge.</li>
+                  </ul>
+                </div>
               )}
-              {visualMode !== 'singkat' && (<div className="space-y-1.5"><h4 className="font-black text-xs text-slate-800 leading-tight">{activeTopic.slides[visualSlide].title}</h4><p className="text-[9.5px] text-slate-500 font-extrabold leading-relaxed px-2">{activeTopic.slides[visualSlide].text}</p></div>)}
-              {activeTopic.slides[visualSlide].quiz && (<div className="grid grid-cols-2 gap-3 pt-2">{activeTopic.slides[visualSlide].answers.map((ans, idx) => (<button key={idx} onClick={() => handleQuizAnswer(ans.correct)} className="bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[9.5px] py-3.5 px-4 rounded-xl cursor-pointer active:scale-95 transition-all shadow-md">{ans.text}</button>))}</div>)}
+
+              {visualMode !== 'singkat' && (
+                <div className="space-y-2">
+                  <h4 className="font-black text-sm text-blue-900 leading-tight">{activeTopic.slides[visualSlide].title}</h4>
+                  <p className="text-[10px] text-slate-700 font-black leading-relaxed px-2">{activeTopic.slides[visualSlide].text}</p>
+                </div>
+              )}
+
+              {activeTopic.slides[visualSlide].quiz && (
+                <div className="grid grid-cols-2 gap-4 pt-2">
+                  {activeTopic.slides[visualSlide].answers.map((ans, idx) => (
+                    <button key={idx} onClick={() => handleQuizAnswer(ans.correct)}
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[10px] py-4 px-4 rounded-2xl cursor-pointer active:translate-y-0.5 border-b-4 border-emerald-700 transition-all shadow-md"
+                    >{ans.text}</button>
+                  ))}
+                </div>
+              )}
             </div>
-            <div className="flex justify-between items-center bg-white p-2 rounded-2.5xl border border-slate-100 shadow-sm"><button onClick={() => { playSound(580, 0.05); setVisualSlide(p => Math.max(0, p - 1)); }} disabled={visualSlide === 0} className="bg-slate-50 hover:bg-slate-100 text-slate-600 px-4 py-2.5 rounded-xl text-[9px] font-black border border-slate-200 disabled:opacity-40">Sebelumnya</button><span className="text-[9.5px] font-black text-slate-400">{visualSlide + 1} / 3</span><button onClick={() => { playSound(580, 0.05); setVisualSlide(p => Math.min(2, p + 1)); }} disabled={visualSlide === 2} className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-[9px] font-black border-b-3 border-emerald-700 disabled:opacity-40">Berikutnya</button></div>
+
+            {/* Slider Navigation (Bold 3D Buttons) */}
+            <div className="flex justify-between items-center bg-slate-100 p-2.5 rounded-2.5xl border-2 border-slate-200 shadow-sm">
+              <button
+                onClick={() => { playSound(580, 0.05); setVisualSlide(p => Math.max(0, p - 1)); }}
+                disabled={visualSlide === 0}
+                className="bg-rose-500 hover:bg-rose-600 text-white px-5 py-3 rounded-xl text-[10px] font-black border-b-4 border-rose-700 disabled:opacity-40 active:translate-y-0.5"
+              >Sebelumnya</button>
+              <span className="text-[10.5px] font-black text-slate-505">{visualSlide + 1} / 3</span>
+              <button
+                onClick={() => { playSound(580, 0.05); setVisualSlide(p => Math.min(2, p + 1)); if (typeof earnSparks === 'function') earnSparks(10, 'complete_slide'); }}
+                disabled={visualSlide === 2}
+                className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-3 rounded-xl text-[10px] font-black border-b-4 border-emerald-700 disabled:opacity-40 active:translate-y-0.5"
+              >Berikutnya</button>
+            </div>
           </div>
         )}
         {activeTab === 'audio' && (
           <div className="space-y-4 animate-fadeIn">
-            <div className="flex gap-2 justify-center bg-white p-2 rounded-2xl border border-slate-100 shadow-sm">
-              {[ { id: 'bimodal', label: '🔊 Audio + Visual (Disleksia)' }, { id: 'teatrikal', label: '🎭 Audio Teatrikal (Tunanetra)' } ].map(opt => (<button key={opt.id} onClick={() => { playSound(480, 0.05); setAudioMode(opt.id); }} className={`px-3.5 py-1.5 rounded-xl text-[8px] font-black border transition-all ${audioMode === opt.id ? 'bg-indigo-500 text-white border-indigo-600' : 'bg-slate-50 border-slate-200 !text-slate-500'}`}>{opt.label}</button>))}
+            {/* Audio Mode Selection (Bold 3D Buttons) */}
+            <div className="flex gap-2.5 justify-center bg-blue-50 p-2 rounded-2.5xl border-2 border-blue-200">
+              {[
+                { id: 'bimodal', label: '🔊 Audio + Visual (Disleksia)', activeColor: 'bg-indigo-500 border-indigo-700 shadow-[0_4px_0_#4338ca]' },
+                { id: 'teatrikal', label: '🎭 Audio Teatrikal (Tunanetra)', activeColor: 'bg-amber-500 border-amber-700 shadow-[0_4px_0_#b45309]' }
+              ].map(opt => (
+                <button
+                  key={opt.id}
+                  onClick={() => { playSound(480, 0.05); setAudioMode(opt.id); }}
+                  className={`px-4 py-2 rounded-xl text-[9px] font-black border-2 border-b-4 transition-all ${
+                    audioMode === opt.id
+                      ? `${opt.activeColor} text-white -translate-y-0.5`
+                      : 'bg-white border-slate-300 !text-slate-700 active:translate-y-0.5'
+                  }`}
+                >{opt.label}</button>
+              ))}
             </div>
-            <div className="bubbly-card p-5 rounded-3xl bg-white border-2 text-center space-y-4 shadow-md">
-              <div className="w-full h-36 bg-slate-950 rounded-2.5xl flex flex-col items-center justify-center p-3 relative overflow-hidden border border-slate-800">
-                <div className="flex items-center gap-1.5 h-12 justify-center">{[1,2,3,4,5,6,7,8,7,6,5,4,3,2,1].map((h, i) => (<div key={i} style={{ height: isNarrating ? `${h*4.5}px` : '4px', animationDelay: `${i*0.08}s` }} className={`w-1 rounded-full bg-gradient-to-t from-indigo-500 to-purple-400 transition-all duration-300 ${isNarrating ? 'animate-pulse' : ''}`}></div>))}</div>
-                <span className="text-[7.5px] text-indigo-300 font-black uppercase tracking-widest mt-2 animate-pulse">{isNarrating ? '🔊 Sedang Membaca...' : '⏸️ Narasi Siap'}</span>
+
+            <div className="p-5 rounded-3xl bg-blue-50/30 border-4 border-blue-300 text-center space-y-4 shadow-inner">
+              <div className="w-full h-36 bg-slate-950 rounded-2.5xl flex flex-col items-center justify-center p-3 relative overflow-hidden border-2 border-blue-500">
+                <div className="flex items-center gap-2 h-14 justify-center">
+                  {[1,2,3,4,5,6,7,8,7,6,5,4,3,2,1].map((h, i) => (
+                    <div key={i} style={{ height: isNarrating ? `${h*5.5}px` : '6px', animationDelay: `${i*0.08}s` }}
+                      className={`w-1.5 rounded-full bg-gradient-to-t from-emerald-400 to-yellow-300 transition-all duration-300 ${isNarrating ? 'animate-pulse' : ''}`}
+                    ></div>
+                  ))}
+                </div>
+                <span className="text-[8px] text-yellow-300 font-black uppercase tracking-wider mt-2 animate-pulse">
+                  {isNarrating ? '🔊 Sedang Membaca...' : '⏸️ Narasi Siap'}
+                </span>
               </div>
+
               {audioMode === 'bimodal' ? (
-                <div className="text-[10px] text-slate-600 font-extrabold leading-relaxed px-4 text-left border border-slate-100 p-3 rounded-2xl bg-slate-50">{activeTopic.slides[visualSlide].text.split(' ').map((word, index) => (<span key={index} className={`px-0.5 rounded transition-colors ${index === activeWordIdx ? 'bg-yellow-300 text-black' : ''}`}>{word}{' '}</span>))}</div>
-              ) : (<p className="text-[10px] text-slate-600 font-extrabold leading-relaxed px-4 italic text-left border border-slate-100 p-3 rounded-2xl bg-indigo-50/40">"{activeTopic.teatrikal}"</p>)}
-              <button onClick={handleAudioReplay} className="bg-indigo-600 hover:bg-indigo-700 text-white border-b-4 border-indigo-800 font-black text-[9.5px] py-3.5 px-6 rounded-2xl cursor-pointer transition-all shadow-md w-full max-w-[200px] mx-auto">🔊 Ulangi Suara</button>
-              <div className="space-y-2 w-full"><span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block">Kecepatan:</span><div className="flex gap-2 justify-center">{[{ val: 0.75, label: '🐢 0.75x' }, { val: 1.0, label: '🚶 1.0x' }, { val: 1.25, label: '⚡ 1.25x' }].map(s => (<button key={s.val} onClick={() => { playSound(600, 0.05); setAudioSpeed(s.val); }} className={`px-3.5 py-2 rounded-xl text-[7.5px] font-black border transition-all cursor-pointer ${audioSpeed === s.val ? 'bg-indigo-50 border-indigo-300 !text-indigo-700' : 'bg-white border-slate-200 !text-slate-500'}`}>{s.label}</button>))}</div></div>
+                <div className="text-[11px] text-slate-800 font-black leading-relaxed px-4 text-left border-4 border-blue-300 p-4 rounded-2xl bg-white shadow-sm">
+                  {activeTopic.slides[visualSlide].text.split(' ').map((word, index) => (
+                    <span
+                      key={index}
+                      className={`px-0.5 rounded transition-colors ${index === activeWordIdx ? 'bg-yellow-300 text-black border border-yellow-400 font-black' : ''}`}
+                    >
+                      {word}{' '}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[11px] text-indigo-900 font-black leading-relaxed px-4 italic text-left border-4 border-blue-300 p-4 rounded-2xl bg-indigo-50/50 shadow-sm">
+                  "{activeTopic.teatrikal}"
+                </p>
+              )}
+
+              <button onClick={handleAudioReplay} className="bg-indigo-600 hover:bg-indigo-700 text-white border-b-4 border-indigo-800 font-black text-[10px] py-4 px-8 rounded-2xl cursor-pointer transition-all shadow-md w-full max-w-[220px] mx-auto active:translate-y-0.5">🔊 Ulangi Suara</button>
+
+              <div className="space-y-2 w-full">
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block">Kecepatan:</span>
+                <div className="flex gap-2 justify-center">
+                  {[{ val: 0.75, label: '🐢 0.75x' }, { val: 1.0, label: '🚶 1.0x' }, { val: 1.25, label: '⚡ 1.25x' }].map(s => (
+                    <button key={s.val} onClick={() => { playSound(600, 0.05); setAudioSpeed(s.val); }}
+                      className={`px-3.5 py-2 rounded-xl text-[8px] font-black border transition-all cursor-pointer ${audioSpeed === s.val ? 'bg-indigo-50 border-indigo-300 !text-indigo-700' : 'bg-white border-slate-200 !text-slate-500'}`}
+                    >{s.label}</button>
+                  ))}
+                </div>
+              </div>
             </div>
-            <div className="flex justify-between items-center bg-white p-2 rounded-2.5xl border border-slate-100 shadow-sm"><button onClick={() => { playSound(580, 0.05); setVisualSlide(p => Math.max(0, p - 1)); }} disabled={visualSlide === 0} className="bg-slate-50 hover:bg-slate-100 text-slate-600 px-4 py-2.5 rounded-xl text-[9px] font-black border border-slate-200 disabled:opacity-40">Sebelumnya</button><span className="text-[9.5px] font-black text-slate-400">{visualSlide + 1} / 3</span><button onClick={() => { playSound(580, 0.05); setVisualSlide(p => Math.min(2, p + 1)); }} disabled={visualSlide === 2} className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-[9px] font-black border-b-3 border-indigo-700 disabled:opacity-40">Berikutnya</button></div>
+
+            {/* Slider Navigation */}
+            <div className="flex justify-between items-center bg-slate-100 p-2.5 rounded-2.5xl border-2 border-slate-200 shadow-sm">
+              <button
+                onClick={() => { playSound(580, 0.05); setVisualSlide(p => Math.max(0, p - 1)); }}
+                disabled={visualSlide === 0}
+                className="bg-rose-500 hover:bg-rose-600 text-white px-5 py-3 rounded-xl text-[10px] font-black border-b-4 border-rose-700 disabled:opacity-40 active:translate-y-0.5"
+              >Sebelumnya</button>
+              <span className="text-[10.5px] font-black text-slate-505">{visualSlide + 1} / 3</span>
+              <button
+                onClick={() => { playSound(580, 0.05); setVisualSlide(p => Math.min(2, p + 1)); if (typeof earnSparks === 'function') earnSparks(10, 'complete_slide'); }}
+                disabled={visualSlide === 2}
+                className="bg-indigo-500 hover:bg-indigo-600 text-white px-5 py-3 rounded-xl text-[10px] font-black border-b-4 border-indigo-700 disabled:opacity-40 active:translate-y-0.5"
+              >Berikutnya</button>
+            </div>
           </div>
         )}
         {activeTab === 'teori' && (
           <div className="space-y-4 animate-fadeIn">
-            <div className="bubbly-card p-5 rounded-3xl bg-white border-2 text-center space-y-4 shadow-md">
-              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden"><div style={{ width: `${((teoriStage + 1) / 3) * 100}%` }} className="bg-purple-500 h-full transition-all duration-300"></div></div>
-              <div className="w-16 h-16 bg-purple-50 text-purple-600 rounded-2.5xl flex items-center justify-center text-3xl mx-auto shadow-inner border border-purple-100">📖</div>
-              <div className="space-y-2 animate-fadeIn"><span className="bg-purple-100 !text-purple-800 text-[7px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full">{activeTopic.badge}</span><h4 className="font-black text-xs text-slate-800 leading-tight">{activeTopic.teori[teoriStage].title}</h4><p className="text-[10px] text-slate-500 font-extrabold leading-relaxed px-2">{activeTopic.teori[teoriStage].text}</p>{activeTopic.teori[teoriStage].quiz && (<div className="grid grid-cols-2 gap-3 pt-2"><button onClick={() => handleQuizAnswer(activeTopicKey !== 'privasi')} className="bg-purple-500 hover:bg-purple-600 text-white font-black text-[9px] py-3 px-4 rounded-xl cursor-pointer shadow-md active:scale-95">Benar 👍</button><button onClick={() => handleQuizAnswer(activeTopicKey === 'privasi')} className="bg-slate-100 hover:bg-slate-200 !text-slate-600 font-black text-[9px] py-3 px-4 rounded-xl cursor-pointer active:scale-95">Tidak 👎</button></div>)}</div>
+            <div className="p-5 rounded-3xl bg-blue-50/30 border-4 border-blue-300 text-center space-y-4 shadow-inner">
+              <div className="w-full bg-slate-250 rounded-full h-3 overflow-hidden border-2 border-slate-350">
+                <div style={{ width: `${((teoriStage + 1) / 3) * 100}%` }} className="bg-emerald-500 h-full transition-all duration-300"></div>
+              </div>
+              <div className="w-20 h-20 bg-blue-100 text-blue-600 rounded-3xl flex items-center justify-center text-4xl mx-auto shadow-inner border-2 border-blue-200 animate-float">📖</div>
+
+              <div className="space-y-2.5 animate-fadeIn">
+                <span className="bg-blue-600 !text-white text-[8px] font-black uppercase tracking-wider px-3.5 py-1 rounded-full shadow-sm">{activeTopic.badge}</span>
+                <h4 className="font-black text-sm text-slate-800 leading-tight">{activeTopic.teori[teoriStage].title}</h4>
+                <p className="text-[11px] text-slate-650 font-black leading-relaxed px-2">{activeTopic.teori[teoriStage].text}</p>
+
+                {activeTopic.teori[teoriStage].quiz && (
+                  <div className="grid grid-cols-2 gap-4 pt-2">
+                    <button onClick={() => handleQuizAnswer(activeTopicKey !== 'privasi')} className="bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[10px] py-4 px-4 rounded-xl cursor-pointer shadow-md border-b-4 border-emerald-700 active:translate-y-0.5">Benar 👍</button>
+                    <button onClick={() => handleQuizAnswer(activeTopicKey === 'privasi')} className="bg-rose-500 hover:bg-rose-600 text-white font-black text-[10px] py-4 px-4 rounded-xl cursor-pointer border-b-4 border-rose-700 active:translate-y-0.5">Tidak 👎</button>
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="flex justify-between items-center bg-white p-2 rounded-2.5xl border border-slate-100 shadow-sm"><button onClick={() => { playSound(580, 0.05); setTeoriStage(p => Math.max(0, p - 1)); }} disabled={teoriStage === 0} className="bg-slate-50 hover:bg-slate-100 text-slate-600 px-4 py-2.5 rounded-xl text-[9px] font-black border border-slate-200 disabled:opacity-40">Sebelumnya</button><span className="text-[9.5px] font-black text-slate-400">{teoriStage + 1} / 3</span><button onClick={() => { playSound(580, 0.05); setTeoriStage(p => Math.min(2, p + 1)); }} disabled={teoriStage === 2} className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2.5 rounded-xl text-[9px] font-black border-b-3 border-purple-700 disabled:opacity-40">Berikutnya</button></div>
+            <div className="flex justify-between items-center bg-slate-100 p-2.5 rounded-2.5xl border-2 border-slate-200 shadow-sm">
+              <button
+                onClick={() => { playSound(580, 0.05); setTeoriStage(p => Math.max(0, p - 1)); }}
+                disabled={teoriStage === 0}
+                className="bg-rose-500 hover:bg-rose-600 text-white px-5 py-3 rounded-xl text-[10px] font-black border-b-4 border-rose-700 disabled:opacity-40 active:translate-y-0.5"
+              >Sebelumnya</button>
+              <span className="text-[10.5px] font-black text-slate-505">{teoriStage + 1} / 3</span>
+              <button
+                onClick={() => { playSound(580, 0.05); setTeoriStage(p => Math.min(2, p + 1)); if (typeof earnSparks === 'function') earnSparks(10, 'complete_slide'); }}
+                disabled={teoriStage === 2}
+                className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-3 rounded-xl text-[10px] font-black border-b-4 border-emerald-700 disabled:opacity-40 active:translate-y-0.5"
+              >Berikutnya</button>
+            </div>
           </div>
         )}
         {activeTab === 'praktik' && (
           <div className="space-y-4 animate-fadeIn">
             {!praktikGame ? (
-              <div className="bubbly-card p-5 rounded-3xl bg-white border-2 space-y-4 shadow-md">
-                <div className="text-center space-y-1"><h4 className="font-black text-xs text-slate-800">🕹️ Pilih Aktivitas Praktik</h4><p className="text-[8px] text-slate-400 font-extrabold">Semua game ini dirancang inklusif untuk semua kebutuhan belajar.</p></div>
-                <div className="grid grid-cols-2 gap-3">
-                  {[ { id: 'adhd', icon: '🎮', name: 'Planet Fokus', desc: 'Sorting Planet AI', color: 'bg-emerald-50 border-emerald-200 hover:border-emerald-400' }, { id: 'hardware-match', icon: '⚡', name: 'Hardware Match', desc: 'Pinch & Drop Perangkat', color: 'bg-indigo-50 border-indigo-200 hover:border-indigo-400' }, { id: 'disleksia-suku', icon: '🧩', name: 'Suku Kata', desc: 'Gabungkan suku kata', color: 'bg-purple-50 border-purple-200 hover:border-purple-400' }, { id: 'disleksia-bangun', icon: '🔠', name: 'Huruf Fun', desc: 'Susun huruf jadi kata', color: 'bg-pink-50 border-pink-200 hover:border-pink-400' } ].map(g => (<button key={g.id} onClick={() => { playSound(520, 0.15); setPraktikGame(g.id); }} className={`p-4 rounded-2.5xl border-2 text-center space-y-1.5 cursor-pointer active:scale-95 transition-all ${g.color}`}><span className="text-2xl block">{g.icon}</span><h5 className="font-black text-[9px] text-slate-800">{g.name}</h5><p className="text-[7px] text-slate-500 font-bold">{g.desc}</p></button>))}
+              <div className="p-5 rounded-3xl bg-blue-50/20 border-4 border-blue-300 space-y-4 shadow-inner">
+                <div className="text-center space-y-1">
+                  <h4 className="font-black text-sm text-blue-900">🕹️ Pilih Aktivitas Praktik</h4>
+                  <p className="text-[9px] text-slate-500 font-extrabold">Semua game ini dirancang inklusif untuk semua kebutuhan belajar.</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  {[
+                    { id: 'adhd', icon: '🎮', name: 'Planet Fokus', desc: 'Sorting Planet AI', color: 'bg-emerald-500 border-emerald-700 shadow-[0_6px_0_#047857] text-white hover:bg-emerald-600' },
+                    { id: 'hardware-match', icon: '⚡', name: 'Hardware Match', desc: 'Pinch & Drop Perangkat', color: 'bg-blue-500 border-blue-700 shadow-[0_6px_0_#1d4ed8] text-white hover:bg-blue-600' },
+                    { id: 'disleksia-suku', icon: '🧩', name: 'Suku Kata', desc: 'Gabungkan suku kata', color: 'bg-purple-500 border-purple-700 shadow-[0_6px_0_#7e22ce] text-white hover:bg-purple-600' },
+                    { id: 'disleksia-bangun', icon: '🔠', name: 'Huruf Fun', desc: 'Susun huruf jadi kata', color: 'bg-pink-500 border-pink-700 shadow-[0_6px_0_#be185d] text-white hover:bg-pink-600' }
+                  ].map(g => (
+                    <button
+                      key={g.id}
+                      onClick={() => { playSound(520, 0.15); setPraktikGame(g.id); }}
+                      className={`p-4 rounded-2.5xl border-2 text-center space-y-1 cursor-pointer active:translate-y-1 active:shadow-none transition-all ${g.color}`}
+                    >
+                      <span className="text-3xl block filter drop-shadow-md">{g.icon}</span>
+                      <h5 className="font-black text-[10px] uppercase tracking-wide leading-none">{g.name}</h5>
+                      <p className="text-[7.5px] font-black opacity-90 leading-tight">{g.desc}</p>
+                    </button>
+                  ))}
                 </div>
               </div>
             ) : praktikGame === 'adhd' ? (
@@ -424,18 +639,36 @@ export default function ABKUnifiedView({
         )}
         {activeTab === 'modul' && (
           <div className="space-y-4 animate-fadeIn">
-            <div className="bg-white p-3.5 rounded-2.5xl border border-slate-100 shadow-sm space-y-2 text-left">
-              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">Pengaturan Adaptasi Bacaan (Disleksia & ADHD)</span>
+            <div className="bg-blue-50 p-4 rounded-3xl border-4 border-blue-300 shadow-sm space-y-2 text-left">
+              <span className="text-[9px] font-black text-blue-900 uppercase tracking-wider block">Pengaturan Adaptasi Bacaan (Disleksia & ADHD)</span>
               <div className="flex gap-2">
-                <button onClick={() => setUseOpenDyslexic(!useOpenDyslexic)} className={`flex-1 py-1.5 rounded-xl text-[7.5px] font-black border transition-all cursor-pointer ${useOpenDyslexic ? 'bg-amber-500 text-white border-amber-600 shadow-sm' : 'bg-slate-50 border-slate-200 !text-slate-500'}`}>✍️ Font Dyslexic: {useOpenDyslexic ? 'AKTIF' : 'NON-AKTIF'}</button>
-                <select value={letterSpacing} onChange={(e) => setLetterSpacing(e.target.value)} className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[7.5px] font-black !text-slate-500 outline-none cursor-pointer"><option value="normal">↔️ Spasi Normal</option><option value="wide">↔️ Spasi Renggang</option><option value="extra-wide">↔️ Spasi Sangat Renggang</option></select>
-                <select value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[7.5px] font-black !text-slate-500 outline-none cursor-pointer"><option value="white">🎨 Bg Putih</option><option value="warm-cream">🎨 Bg Warm Cream</option><option value="cool-blue">🎨 Bg Cool Blue</option></select>
+                <button onClick={() => setUseOpenDyslexic(!useOpenDyslexic)} className={`flex-1 py-2 rounded-xl text-[8px] font-black border-2 border-b-4 transition-all cursor-pointer ${useOpenDyslexic ? 'bg-amber-500 border-amber-700 shadow-sm text-white' : 'bg-white border-slate-350 !text-slate-600'}`}>✍️ Font Dyslexic: {useOpenDyslexic ? 'AKTIF' : 'NON-AKTIF'}</button>
+                <select value={letterSpacing} onChange={(e) => setLetterSpacing(e.target.value)} className="px-3 py-2 bg-white border-2 border-slate-350 rounded-xl text-[8px] font-black !text-slate-600 outline-none cursor-pointer"><option value="normal">↔️ Spasi Normal</option><option value="wide">↔️ Spasi Renggang</option><option value="extra-wide">↔️ Spasi Sangat Renggang</option></select>
+                <select value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="px-3 py-2 bg-white border-2 border-slate-350 rounded-xl text-[8px] font-black !text-slate-600 outline-none cursor-pointer"><option value="white">🎨 Bg Putih</option><option value="warm-cream">🎨 Bg Warm Cream</option><option value="cool-blue">🎨 Bg Cool Blue</option></select>
               </div>
             </div>
+
             {!modulView ? (
-              <div className="bubbly-card p-5 rounded-3xl bg-white border-2 space-y-4 shadow-md">
-                <div className="text-center space-y-1"><h4 className="font-black text-xs text-slate-800">📚 Pilih Modul Belajar</h4><p className="text-[8px] text-slate-400 font-extrabold">Konten multimedia dan bacaan interaktif.</p></div>
-                <div className="grid grid-cols-2 gap-3">{[ { id: 'video', icon: '🎬', name: 'Video Pendek', desc: 'Animasi tata surya 2-3 menit', color: 'bg-indigo-50 border-indigo-200 hover:border-indigo-400' }, { id: 'fokus', icon: '⏱️', name: 'Misi Fokus 5 Menit', desc: 'Timer belajar + fakta seru', color: 'bg-emerald-50 border-emerald-200 hover:border-emerald-400' }, { id: 'baca', icon: '🎧', name: 'Audio Land', desc: 'Baca cerita interaktif', color: 'bg-purple-50 border-purple-200 hover:border-purple-400' }, { id: 'buku', icon: '🏰', name: 'Buku Ajaib', desc: 'Buka kunci halaman rahasia', color: 'bg-amber-50 border-amber-200 hover:border-amber-400' } ].map(m => (<button key={m.id} onClick={() => { playSound(520, 0.15); setModulView(m.id); }} className={`p-4 rounded-2.5xl border-2 text-center space-y-1.5 cursor-pointer active:scale-95 transition-all ${m.color}`}><span className="text-2xl block">{m.icon}</span><h5 className="font-black text-[9px] text-slate-800">{m.name}</h5><p className="text-[7px] text-slate-500 font-bold">{m.desc}</p></button>))}</div>
+              <div className="p-5 rounded-3xl bg-blue-50/20 border-4 border-blue-300 space-y-4 shadow-inner">
+                <div className="text-center space-y-1"><h4 className="font-black text-sm text-blue-900">📚 Pilih Modul Belajar</h4><p className="text-[8.5px] text-slate-400 font-extrabold">Konten multimedia dan bacaan interaktif.</p></div>
+                <div className="grid grid-cols-2 gap-4">
+                  {[
+                    { id: 'video', icon: '🎬', name: 'Video Pendek', desc: 'Animasi tata surya 2-3 menit', color: 'bg-blue-500 border-blue-700 shadow-[0_6px_0_#1d4ed8] text-white hover:bg-blue-600' },
+                    { id: 'fokus', icon: '⏱️', name: 'Misi Fokus', desc: 'Timer belajar + fakta seru', color: 'bg-emerald-500 border-emerald-700 shadow-[0_6px_0_#047857] text-white hover:bg-emerald-600' },
+                    { id: 'baca', icon: '🎧', name: 'Audio Land', desc: 'Baca cerita interaktif', color: 'bg-purple-500 border-purple-700 shadow-[0_6px_0_#7e22ce] text-white hover:bg-purple-600' },
+                    { id: 'buku', icon: '🏰', name: 'Buku Ajaib', desc: 'Buka kunci halaman rahasia', color: 'bg-amber-500 border-amber-700 shadow-[0_6px_0_#b45309] text-white hover:bg-amber-600' }
+                  ].map(m => (
+                    <button
+                      key={m.id}
+                      onClick={() => { playSound(520, 0.15); setModulView(m.id); }}
+                      className={`p-4 rounded-3xl border-2 text-center space-y-1 cursor-pointer active:translate-y-1 active:shadow-none transition-all ${m.color}`}
+                    >
+                      <span className="text-3xl block filter drop-shadow-md">{m.icon}</span>
+                      <h5 className="font-black text-[10px] uppercase tracking-wide leading-none">{m.name}</h5>
+                      <p className="text-[7.5px] font-black opacity-90 leading-tight">{m.desc}</p>
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : modulView === 'video' ? (
               <div className="bubbly-card p-5 rounded-3xl bg-white border-2 space-y-4 shadow-md"><div className="flex justify-between items-center"><h4 className="font-black text-[10px] text-indigo-700">🎬 Video Pendek: Tata Surya</h4><button onClick={() => { setIsVideoPlaying(false); setModulView(null); }} className="px-3 py-1 bg-rose-500 text-white font-black text-[8px] rounded-full">Kembali</button></div><div className="w-full aspect-video bg-slate-900 rounded-2xl relative flex items-center justify-center overflow-hidden border border-slate-700"><div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40"><div className="w-16 h-16 border border-dashed border-emerald-500/30 rounded-full animate-spin" style={{ animationDuration: '6s' }}></div><span className="absolute text-yellow-500 text-lg">☀️</span></div>{!isVideoPlaying && videoProgress === 0 && (<button onClick={() => { playSound(600, 0.25); setIsVideoPlaying(true); }} className="w-12 h-12 bg-emerald-500 text-white rounded-full flex items-center justify-center text-lg font-black shadow-lg z-10 cursor-pointer active:scale-90">▶️</button>)}{isVideoPlaying && (<div className="absolute bottom-2 left-2 right-2 bg-slate-950/70 p-1.5 rounded-lg"><p className="text-[8px] font-black text-amber-400 text-center">{videoProgress < 30 && "Merkurius & Venus berada paling dekat dengan Matahari..."}{videoProgress >= 30 && videoProgress < 60 && "Bumi adalah satu-satunya planet yang memiliki kehidupan..."}{videoProgress >= 60 && videoProgress < 90 && "Mars berwarna merah karena tanahnya banyak besi..."}{videoProgress >= 90 && "Jupiter adalah raksasa gas terbesar!"}</p></div>)}</div><div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-emerald-500 transition-all" style={{ width: `${videoProgress}%` }}></div></div><button onClick={() => setIsVideoPlaying(!isVideoPlaying)} className="w-full py-2 bg-indigo-500 hover:bg-indigo-600 text-white font-black text-[9px] rounded-xl cursor-pointer">{isVideoPlaying ? '⏸️ Jeda' : '▶️ Putar Video'}</button></div>

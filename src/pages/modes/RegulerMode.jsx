@@ -29,6 +29,7 @@ export default function RegulerMode({
   triggerBadgeMinting,
   speakText,
   setSelectedMode,
+  earnSparks,
 }) {
   // Tabs for 'praktik' submode: 'coding', 'ai', 'tantangan', 'tutor'
   const [activeTab, setActiveTab] = useState('coding');
@@ -115,13 +116,13 @@ export default function RegulerMode({
           setStars(prev => prev + 50);
           playTone(523.25, 'sine', 0.15);
           setTimeout(() => playTone(659.25, 'sine', 0.25), 150);
-          confetti();
-          speakText("Luar biasa! Robot kodingmu berhasil mencapai piala emas!");
+          if (typeof earnSparks === 'function') earnSparks(15, 'complete_challenge');
           setTutorMessage('Robo-Tutor: "HEBAT! Robot sampai ke piala 🏆. Kamu dapat +50 Bintang! Lencana reguler siap diklaim!"');
           triggerBadgeMinting('reguler');
         } else {
           setMazeStatus('Failed');
           playTone(220, 'sawtooth', 0.35);
+          if (typeof earnSparks === 'function') earnSparks(5, 'retry_quiz');
           setTutorMessage('Robo-Tutor: "Yah, robot berhenti sebelum piala. Yuk klik Bersihkan untuk menulis kode baru (debugging)!"');
         }
         setIsMazeRunning(false);
@@ -522,8 +523,7 @@ export default function RegulerMode({
                     onClick={() => {
                       playTone(523.25, 'sine', 0.15);
                       setTimeout(() => playTone(659.25, 'sine', 0.25), 150);
-                      confetti();
-                      speakText("Luar biasa! Jawabanmu benar, itu dinamakan koding!");
+                      if (typeof earnSparks === 'function') earnSparks(15, 'complete_challenge');
                       setStars(prev => prev + 40);
                       triggerBadgeMinting('reguler');
                     }}
@@ -534,7 +534,7 @@ export default function RegulerMode({
                   <button
                     onClick={() => {
                       playTone(220, 'triangle', 0.35);
-                      speakText("Kurang tepat, coba baca lagi slide pertama!");
+                      if (typeof earnSparks === 'function') earnSparks(5, 'retry_quiz');
                     }}
                     className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-[9.5px] py-2.5 px-3 rounded-xl cursor-pointer active:scale-95 transition-all"
                   >
@@ -556,7 +556,7 @@ export default function RegulerMode({
             </button>
             <span className="text-[9.5px] font-black text-slate-400">{regulerSlide + 1} / 3</span>
             <button
-              onClick={() => { playTone(580, 'sine', 0.05); setRegulerSlide(prev => Math.min(2, prev + 1)); }}
+              onClick={() => { playTone(580, 'sine', 0.05); setRegulerSlide(prev => Math.min(2, prev + 1)); if (typeof earnSparks === 'function') earnSparks(10, 'complete_slide'); }}
               disabled={regulerSlide === 2}
               className="bg-emerald-500 text-white px-4 py-2 rounded-xl text-[9px] font-black border-b-3 border-emerald-700 disabled:opacity-40"
             >
