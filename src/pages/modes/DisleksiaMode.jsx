@@ -15,17 +15,17 @@ export default function DisleksiaMode({
   // 1. Suku Kata Game State
   const [sukuWord, setSukuWord] = useState({
     prefix: '', 
-    suffix: 'ju',
-    options: ['ba', 'bi', 'bu', 'be', 'bo'],
-    correct: 'ba',
-    target: 'baju',
+    suffix: 'de',
+    options: ['ka', 'ki', 'ku', 'ke', 'ko'],
+    correct: 'ko',
+    target: 'kode',
     completed: false
   });
 
   // 2. Bangun Kata Game State
   const [bangunWord, setBangunWord] = useState({
-    target: 'kucing',
-    letters: ['u', 'c', 'g', 'k', 'n', 'i'],
+    target: 'koding',
+    letters: ['g', 'o', 'd', 'k', 'n', 'i'],
     currentLetters: [],
     completed: false
   });
@@ -66,7 +66,7 @@ export default function DisleksiaMode({
       setSukuWord(prev => ({ ...prev, prefix: opt, completed: true }));
       setWordCount(prev => Math.min(100, prev + 5));
       confetti({ particleCount: 30, spread: 60, origin: { y: 0.6 } });
-      speakText("Hebat! Baju!");
+      speakText("Hebat! Kode!");
     } else {
       speakText("Coba lagi ya.");
     }
@@ -93,7 +93,7 @@ export default function DisleksiaMode({
       if (updatedBuilt.join('') === bangunWord.target) {
         setWordCount(prev => Math.min(100, prev + 10));
         confetti({ particleCount: 40, spread: 80, origin: { y: 0.6 } });
-        speakText("Luar biasa! Kucing!");
+        speakText("Luar biasa! Koding!");
         triggerBadgeMinting('disleksia');
       }
     } else {
@@ -128,18 +128,18 @@ export default function DisleksiaMode({
   const resetSukuGame = () => {
     setSukuWord({
       prefix: '',
-      suffix: 'ju',
-      options: ['ba', 'bi', 'bu', 'be', 'bo'],
-      correct: 'ba',
-      target: 'baju',
+      suffix: 'de',
+      options: ['ka', 'ki', 'ku', 'ke', 'ko'],
+      correct: 'ko',
+      target: 'kode',
       completed: false
     });
   };
 
   const resetBangunGame = () => {
     setBangunWord({
-      target: 'kucing',
-      letters: ['u', 'c', 'g', 'k', 'n', 'i'],
+      target: 'koding',
+      letters: ['g', 'o', 'd', 'k', 'n', 'i'],
       currentLetters: [],
       completed: false
     });
@@ -538,7 +538,7 @@ export default function DisleksiaMode({
               <span className="pk-menu-icon">🔠</span>
               <div className="pk-menu-text">
                 <h4>2. Huruf Fun</h4>
-                <p>Susun huruf meong</p>
+                <p>Susun huruf koding</p>
               </div>
             </button>
 
@@ -586,7 +586,7 @@ export default function DisleksiaMode({
           </div>
 
           <p className="text-[10px] font-bold text-slate-600 text-center">
-            Gabungkan suku kata awal agar roket membentuk kata <b>"baju"</b>!
+            Gabungkan suku kata awal agar roket membentuk kata <b>"kode"</b>!
           </p>
 
           <div className="pk-suku-rocket">
@@ -616,7 +616,7 @@ export default function DisleksiaMode({
 
           {sukuWord.completed && (
             <div className="text-center mt-3">
-              <p className="text-[10px] text-emerald-600 font-extrabold mb-1">✓ Berhasil menyusun Baju!</p>
+              <p className="text-[10px] text-emerald-600 font-extrabold mb-1">✓ Berhasil menyusun Kode!</p>
               <button onClick={resetSukuGame} className="px-4 py-1 bg-purple-600 text-white font-bold text-[9px] rounded-lg">
                 Main Lagi
               </button>
@@ -634,8 +634,8 @@ export default function DisleksiaMode({
           </div>
 
           <div className="flex items-center justify-center gap-2 mb-1">
-            <span className="text-3xl">🐱</span>
-            <span className="text-[9px] font-bold text-slate-500">Susun huruf untuk ejaan: kucing!</span>
+            <span className="text-3xl">🤖</span>
+            <span className="text-[9px] font-bold text-slate-500">Susun huruf untuk ejaan: koding!</span>
           </div>
 
           <div className="pk-bangun-slots">
@@ -660,7 +660,7 @@ export default function DisleksiaMode({
 
           {bangunWord.completed && (
             <div className="text-center mt-2">
-              <p className="text-[9px] text-emerald-600 font-extrabold mb-1">✓ Selesai mengeja Kucing!</p>
+              <p className="text-[9px] text-emerald-600 font-extrabold mb-1">✓ Selesai mengeja Koding!</p>
               <button onClick={resetBangunGame} className="px-4 py-1 bg-pink-600 text-white font-bold text-[9px] rounded-lg">
                 Main Lagi
               </button>
