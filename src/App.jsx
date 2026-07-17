@@ -4,6 +4,8 @@ import confetti from 'canvas-confetti';
 import Home from './pages/Home';
 import Belajar from './pages/Belajar';
 import Profile from './pages/Profile';
+import SplashScreen from './pages/SplashScreen';
+import AuthPage from './pages/AuthPage';
 import RegulerMode from './pages/modes/RegulerMode';
 import ADHDMode from './pages/modes/ADHDMode';
 import TunarunguMode from './pages/modes/TunarunguMode';
@@ -17,10 +19,27 @@ import { setRelaxationMusic, setRelaxationVolume } from './utils/relaxationAudio
 
 export default function App() {
   // --- Global Navigation & Auth States ---
+  // --- Splash & Auth Flow ---
+  const [showSplash, setShowSplash] = useState(true);
+  const [showAuth, setShowAuth] = useState(false); // shows after splash finishes
+
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [username, setUsername] = useState('Yuanda Eka');
   const [selectedAvatar, setSelectedAvatar] = useState('🚀'); // default avatar emoji
   const [currentTab, setCurrentTab] = useState('home'); // 'home' | 'belajar' | 'profile'
+
+  // Callback when splash finishes loading
+  const handleSplashFinish = useCallback(() => {
+    setShowSplash(false);
+    setShowAuth(true);
+  }, []);
+
+  // Callback when auth (login/register) succeeds
+  const handleAuthLogin = useCallback((displayName) => {
+    setUsername(displayName || 'Explorer');
+    setShowAuth(false);
+    setIsLoggedIn(true);
+  }, []);
 
   // --- Relaxation Music States ---
   const [musicEnabled, setMusicEnabled] = useState(false);
@@ -1304,6 +1323,7 @@ export default function App() {
     }, 1200);
   };
 
+  // Legacy login submit handler kept for compatibility — now handled by AuthPage
   const handleLoginSubmit = (e) => {
     e.preventDefault();
     if (username.trim()) {
@@ -1326,6 +1346,9 @@ export default function App() {
   // --- RENDERING ---
   return (
     <div className="min-h-screen bg-emerald-50/40 p-0 sm:py-6 flex items-center justify-center">
+      {/* SPLASH SCREEN OVERLAY */}
+      {showSplash && <SplashScreen onFinish={handleSplashFinish} />}
+
       {/* PHONE WRAPPER FOR MOBILE-FIRST FEEL */}
       <div className="phone-container flex flex-col justify-between bubbly-card bg-white relative overflow-hidden">
         
@@ -1472,79 +1495,10 @@ export default function App() {
         )}
 
         {/* ============================================================== */}
-        {/* VIEW 1: SPLASH & LOGIN CONTAINER */}
+        {/* VIEW 1: AUTH (LOGIN / REGISTER) PAGE */}
         {/* ============================================================== */}
         {!isLoggedIn ? (
-          <div className="flex-1 flex flex-col justify-center p-6 bg-gradient-to-b from-emerald-50/60 via-white to-teal-50/20 relative overflow-hidden">
-            {/* Ambient Background Glows */}
-            <div className="absolute -top-12 -left-12 w-28 h-28 rounded-full bg-emerald-300/20 blur-xl pointer-events-none"></div>
-            <div className="absolute -bottom-16 -right-16 w-36 h-36 rounded-full bg-teal-400/20 blur-2xl pointer-events-none"></div>
-            <div className="absolute top-1/3 right-4 w-12 h-12 rounded-full bg-indigo-300/10 blur-lg pointer-events-none"></div>
-
-            <div className="text-center mb-6 relative z-10">
-              <div className="w-20 h-20 bg-gradient-to-br from-emerald-400 to-teal-600 rounded-3xl mx-auto flex items-center justify-center text-white text-4xl shadow-lg mb-4 animate-float border-2 border-white/50 transform hover:scale-105 transition-transform duration-300">
-                💻
-              </div>
-              <h2 className="text-[22px] font-black tracking-tight leading-tight bg-gradient-to-r from-emerald-600 via-teal-500 to-indigo-600 bg-clip-text text-transparent">
-                SatuArah Koding & AI
-              </h2>
-              <div className="mt-2.5 bg-white/70 backdrop-blur-sm border border-emerald-100/50 rounded-2xl py-2 px-3 shadow-sm inline-block">
-                <p className="text-[9.5px] text-slate-600 font-bold leading-normal">
-                  💡 Ruang belajar koding & kecerdasan buatan adaptif ramah disabilitas & anak reguler.
-                </p>
-              </div>
-            </div>
-
-            <form onSubmit={handleLoginSubmit} className="space-y-4 relative z-10">
-              <div className="space-y-1.5">
-                <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
-                  Nama Coder / AI Explorer Cilik:
-                </label>
-                <div className="relative">
-                  <span className="absolute left-4 top-3 text-slate-400 text-sm">👤</span>
-                  <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="w-full bg-white/80 backdrop-blur-sm border-2 border-emerald-100 hover:border-emerald-300 focus:border-emerald-500 focus:bg-white outline-none rounded-2xl py-3 pl-10 pr-4 text-xs font-black text-slate-800 transition-all shadow-sm focus:shadow-emerald-100 focus:shadow-md"
-                    placeholder="Masukkan nama kerenmu..."
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Avatar Selector */}
-              <div className="space-y-1.5">
-                <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
-                  Pilih Avatar Jagoanmu:
-                </label>
-                <div className="grid grid-cols-5 gap-2">
-                  {['🚀', '🦖', '🤖', '🦊', '🦁'].map((av) => (
-                    <button
-                      key={av}
-                      type="button"
-                      onClick={() => { playTone(580, 'sine', 0.1); setSelectedAvatar(av); }}
-                      className={`py-3 rounded-2xl text-2xl border-2 transition-all duration-200 bg-white ${
-                        selectedAvatar === av
-                          ? 'border-emerald-500 scale-110 shadow-md shadow-emerald-100 bg-gradient-to-b from-white to-emerald-50/50'
-                          : 'border-slate-100 hover:border-emerald-200 hover:scale-105 active:scale-95'
-                      }`}
-                    >
-                      {av}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                onClick={() => playTone(660, 'sine', 0.15)}
-                className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black py-3.5 px-6 rounded-2.5xl text-xs uppercase transition-all shadow-lg hover:shadow-emerald-200 active:scale-98 cursor-pointer mt-5 border-b-4 border-teal-800"
-              >
-                Mulai Belajar Koding &rarr;
-              </button>
-            </form>
-          </div>
+          <AuthPage onLogin={handleAuthLogin} />
         ) : (
           /* ============================================================== */
           /* MAIN LOGGED IN APP CONTENTS */
