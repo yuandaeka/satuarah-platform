@@ -11,7 +11,7 @@ import TunanetraMode from './pages/modes/TunanetraMode';
 import DisleksiaMode from './pages/modes/DisleksiaMode';
 import ABKUnifiedView from './pages/modes/ABKUnifiedView';
 import { REGULER_LYRICS, TUNANETRA_STORIES, INITIAL_PLANET_CARDS } from './constants';
-import { playTone } from './utils/audio';
+import { playTone, playCelebrationFanfare } from './utils/audio';
 import { setRelaxationMusic, setRelaxationVolume } from './utils/relaxationAudio';
 
 
@@ -301,12 +301,13 @@ export default function App() {
 
 
 
-  // Blockchain Badge Minting Trigger
+  // Badge Achievement Trigger
   const triggerBadgeMinting = useCallback((modeKey) => {
     if (unlockedBadges[modeKey]) return; // already unlocked
     setActiveBadgeToMint(modeKey);
-    setMintingStatusText('Menghubungkan ke Node Kepercayaan...');
+    setMintingStatusText('🎉 Selamat! Kamu Mendapatkan Lencana Baru!');
     setIsMintingModalOpen(true);
+    playCelebrationFanfare();
   }, [unlockedBadges]);
 
   // Effect to manage body class adaptations for accessibility modes
@@ -1216,38 +1217,42 @@ export default function App() {
     }, 2800);
   };
 
+  // Motivational messages for badge celebration
+  const badgeMotivationMessages = [
+    'Keren banget! Terus semangat belajar ya! 💪',
+    'Hebat! Kamu sudah selangkah lebih maju! 🌟',
+    'Luar biasa! Prestasi yang membanggakan! 🏅',
+    'Mantap! Terus raih lencana berikutnya ya! 🚀',
+    'Wow, kamu juara! Jangan pernah berhenti belajar! ✨',
+  ];
+
   const executeMinting = () => {
-    setMintingStatusText('Memproses Penyimpanan Kompetensi...');
+    const motivation = badgeMotivationMessages[Math.floor(Math.random() * badgeMotivationMessages.length)];
+    setMintingStatusText('✨ Menyimpan Lencana ke Koleksimu...');
+    playCelebrationFanfare();
     
     setTimeout(() => {
-      setMintingStatusText('Menyiapkan Berkas Lencana Baru...');
+      setMintingStatusText(`🏆 ${motivation}`);
       
       setTimeout(() => {
-        setMintingStatusText('Sukses! Lencana Berhasil Disimpan.');
+        setIsMintingModalOpen(false);
+        setUnlockedBadges(prev => ({ ...prev, [activeBadgeToMint]: true }));
+        setWalletTokens(prev => prev + 1);
         
-        setTimeout(() => {
-          setIsMintingModalOpen(false);
-          setUnlockedBadges(prev => ({ ...prev, [activeBadgeToMint]: true }));
-          setWalletTokens(prev => prev + 1);
-          
-          const now = new Date();
-          const timestamp = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-          
-          setBlockchainLogs(prev => [
-            ...prev,
-            { timestamp, text: `Berhasil Memperoleh Lencana: Lencana ${activeBadgeToMint.toUpperCase()}` }
-          ]);
-          playTone(523.25, 'sine', 0.15);
-          setTimeout(() => playTone(659.25, 'sine', 0.25), 150);
-          
-          if (selectedMode === 'tunanetra') {
-            speakText("Selamat! Lencana kompetensi baru berhasil disimpan ke profil belajarmu.", true);
-          }
-          confetti();
-          setActiveBadgeToMint(null);
-        }, 1500);
-      }, 1500);
-    }, 1500);
+        const now = new Date();
+        const timestamp = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        
+        setBlockchainLogs(prev => [
+          ...prev,
+          { timestamp, text: `Berhasil Memperoleh Lencana: Lencana ${activeBadgeToMint.toUpperCase()}` }
+        ]);
+        
+        // Speak congratulatory message
+        speakText(`Selamat! Kamu berhasil mendapatkan lencana ${activeBadgeToMint}. ${motivation}`, true);
+        confetti();
+        setActiveBadgeToMint(null);
+      }, 2000);
+    }, 1200);
   };
 
   // Chatbot Advisor Logic
@@ -1874,7 +1879,7 @@ export default function App() {
           </footer>
         )}
 
-        {/* NEW LENCANA MODAL (UNLOCKED BADGE REWARD) */}
+        {/* LENCANA ACHIEVEMENT MODAL (UNLOCKED BADGE REWARD) */}
         {activeBadgeToMint && (
           <div className="absolute inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-6 backdrop-blur-sm">
             <div className="bg-white rounded-3xl p-6 w-full max-w-[280px] text-center border-3 border-emerald-400 space-y-4 shadow-2xl animate-float">
@@ -1882,22 +1887,21 @@ export default function App() {
                 {activeBadgeToMint === 'reguler' ? '🎓' : activeBadgeToMint === 'adhd' ? '🎯' : activeBadgeToMint === 'tunarungu' ? '🤟' : activeBadgeToMint === 'tunanetra' ? '🎧' : '✏️'}
               </div>
               <div className="space-y-1">
-                <h3 className="font-black text-slate-800 text-sm uppercase">🏆 Lencana Baru!</h3>
+                <h3 className="font-black text-slate-800 text-sm uppercase">🏆 Selamat! Lencana Baru!</h3>
                 <p className="text-[10px] text-slate-500 font-semibold leading-relaxed">
                   Kamu luar biasa! Berhasil menyelesaikan modul pembelajaran {activeBadgeToMint.toUpperCase()} cilik.
                 </p>
               </div>
               {isMintingModalOpen ? (
-                <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-ping"></span>
-                  <span className="text-[8.5px] font-black text-slate-600">{mintingStatusText}</span>
+                <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 flex flex-col items-center justify-center gap-1.5">
+                  <span className="text-[10px] font-black text-emerald-700 leading-relaxed">{mintingStatusText}</span>
                 </div>
               ) : (
                 <button
                   onClick={executeMinting}
                   className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-black py-3.5 rounded-2.5xl text-xs uppercase shadow-md active:scale-95 transition-all cursor-pointer border-b-4 border-teal-800"
                 >
-                  Simpan Lencana Belajar
+                  🎉 Klaim Lencana Saya!
                 </button>
               )}
             </div>
