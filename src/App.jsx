@@ -290,6 +290,7 @@ export default function App() {
   const [activeBadgeToMint, setActiveBadgeToMint] = useState(null);
   const [mintingStatusText, setMintingStatusText] = useState('');
   const [isMintingModalOpen, setIsMintingModalOpen] = useState(false);
+  const [badgeClaimComplete, setBadgeClaimComplete] = useState(false);
 
   // --- Chatbot floating state ---
   const [chatOpen, setChatOpen] = useState(false);
@@ -307,6 +308,7 @@ export default function App() {
     setActiveBadgeToMint(modeKey);
     setMintingStatusText('🎉 Selamat! Kamu Mendapatkan Lencana Baru!');
     setIsMintingModalOpen(true);
+    setBadgeClaimComplete(false);
     playCelebrationFanfare();
   }, [unlockedBadges]);
 
@@ -1232,27 +1234,47 @@ export default function App() {
     playCelebrationFanfare();
     
     setTimeout(() => {
-      setMintingStatusText(`🏆 ${motivation}`);
+      setUnlockedBadges(prev => ({ ...prev, [activeBadgeToMint]: true }));
+      setWalletTokens(prev => prev + 1);
       
-      setTimeout(() => {
-        setIsMintingModalOpen(false);
-        setUnlockedBadges(prev => ({ ...prev, [activeBadgeToMint]: true }));
-        setWalletTokens(prev => prev + 1);
-        
-        const now = new Date();
-        const timestamp = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-        
-        setBlockchainLogs(prev => [
-          ...prev,
-          { timestamp, text: `Berhasil Memperoleh Lencana: Lencana ${activeBadgeToMint.toUpperCase()}` }
-        ]);
-        
-        // Speak congratulatory message
-        speakText(`Selamat! Kamu berhasil mendapatkan lencana ${activeBadgeToMint}. ${motivation}`, true);
-        confetti();
-        setActiveBadgeToMint(null);
-      }, 2000);
-    }, 1200);
+      const now = new Date();
+      const timestamp = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      
+      setBlockchainLogs(prev => [
+        ...prev,
+        { timestamp, text: `Berhasil Memperoleh Lencana: Lencana ${activeBadgeToMint.toUpperCase()}` }
+      ]);
+      
+      setMintingStatusText(`🏆 ${motivation}`);
+      setBadgeClaimComplete(true);
+      setIsMintingModalOpen(false);
+      
+      // Speak congratulatory message
+      speakText(`Selamat! Kamu berhasil mendapatkan lencana ${activeBadgeToMint}. ${motivation}`, true);
+      confetti();
+    }, 1500);
+  };
+
+  // Badge modal navigation handlers
+  const handleBadgeBelajarLagi = () => {
+    const modeToRestart = activeBadgeToMint;
+    setActiveBadgeToMint(null);
+    setBadgeClaimComplete(false);
+    setIsMintingModalOpen(false);
+    // Re-enter the same learning mode fresh
+    setSelectedMode(modeToRestart);
+    setRegulerSubMode(null);
+    setCurrentTab('belajar');
+  };
+
+  const handleBadgeBackToMenu = () => {
+    setActiveBadgeToMint(null);
+    setBadgeClaimComplete(false);
+    setIsMintingModalOpen(false);
+    setSelectedMode(null);
+    setRegulerSubMode(null);
+    setCurrentTab('home');
+    stopSpeaking();
   };
 
   // Chatbot Advisor Logic
@@ -1887,12 +1909,30 @@ export default function App() {
                 {activeBadgeToMint === 'reguler' ? '🎓' : activeBadgeToMint === 'adhd' ? '🎯' : activeBadgeToMint === 'tunarungu' ? '🤟' : activeBadgeToMint === 'tunanetra' ? '🎧' : '✏️'}
               </div>
               <div className="space-y-1">
-                <h3 className="font-black text-slate-800 text-sm uppercase">🏆 Selamat! Lencana Baru!</h3>
+                <h3 className="font-black text-slate-800 text-sm uppercase">{badgeClaimComplete ? '🌟 Lencana Berhasil Diklaim!' : '🏆 Selamat! Lencana Baru!'}</h3>
                 <p className="text-[10px] text-slate-500 font-semibold leading-relaxed">
-                  Kamu luar biasa! Berhasil menyelesaikan modul pembelajaran {activeBadgeToMint.toUpperCase()} cilik.
+                  {badgeClaimComplete 
+                    ? mintingStatusText 
+                    : `Kamu luar biasa! Berhasil menyelesaikan modul pembelajaran ${activeBadgeToMint.toUpperCase()} cilik.`
+                  }
                 </p>
               </div>
-              {isMintingModalOpen ? (
+              {badgeClaimComplete ? (
+                <div className="space-y-2.5">
+                  <button
+                    onClick={handleBadgeBelajarLagi}
+                    className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-black py-3 rounded-2xl text-xs uppercase shadow-md active:scale-95 transition-all cursor-pointer border-b-4 border-teal-800"
+                  >
+                    📚 Belajar Lagi
+                  </button>
+                  <button
+                    onClick={handleBadgeBackToMenu}
+                    className="w-full bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 font-black py-3 rounded-2xl text-xs uppercase shadow-md active:scale-95 transition-all cursor-pointer border-b-4 border-slate-400"
+                  >
+                    🏠 Kembali ke Menu Utama
+                  </button>
+                </div>
+              ) : isMintingModalOpen ? (
                 <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 flex flex-col items-center justify-center gap-1.5">
                   <span className="text-[10px] font-black text-emerald-700 leading-relaxed">{mintingStatusText}</span>
                 </div>
