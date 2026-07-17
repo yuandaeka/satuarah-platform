@@ -289,7 +289,6 @@ export default function App() {
   ]);
   const [activeBadgeToMint, setActiveBadgeToMint] = useState(null);
   const [mintingStatusText, setMintingStatusText] = useState('');
-  const [isMintingModalOpen, setIsMintingModalOpen] = useState(false);
   const [badgeClaimComplete, setBadgeClaimComplete] = useState(false);
 
   // --- Chatbot floating state ---
@@ -302,15 +301,40 @@ export default function App() {
 
 
 
-  // Badge Achievement Trigger
+  // Badge Achievement Trigger — auto-processes and shows navigation buttons
   const triggerBadgeMinting = useCallback((modeKey) => {
     if (unlockedBadges[modeKey]) return; // already unlocked
     setActiveBadgeToMint(modeKey);
-    setMintingStatusText('🎉 Selamat! Kamu Mendapatkan Lencana Baru!');
-    setIsMintingModalOpen(true);
     setBadgeClaimComplete(false);
     playCelebrationFanfare();
-  }, [unlockedBadges]);
+
+    const motivation = [
+      'Keren banget! Terus semangat belajar ya! 💪',
+      'Hebat! Kamu sudah selangkah lebih maju! 🌟',
+      'Luar biasa! Prestasi yang membanggakan! 🏅',
+      'Mantap! Terus raih lencana berikutnya ya! 🚀',
+      'Wow, kamu juara! Jangan pernah berhenti belajar! ✨',
+    ][Math.floor(Math.random() * 5)];
+
+    // Auto-process badge after short celebration
+    setTimeout(() => {
+      setUnlockedBadges(prev => ({ ...prev, [modeKey]: true }));
+      setWalletTokens(prev => prev + 1);
+
+      const now = new Date();
+      const timestamp = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      setBlockchainLogs(prev => [
+        ...prev,
+        { timestamp, text: `Berhasil Memperoleh Lencana: Lencana ${modeKey.toUpperCase()}` }
+      ]);
+
+      setMintingStatusText(`🏆 ${motivation}`);
+      setBadgeClaimComplete(true);
+      playCelebrationFanfare();
+      speakText(`Selamat! Kamu berhasil mendapatkan lencana ${modeKey}. ${motivation}`, true);
+      confetti();
+    }, 2000);
+  }, [unlockedBadges, speakText]);
 
   // Effect to manage body class adaptations for accessibility modes
   useEffect(() => {
@@ -1219,48 +1243,11 @@ export default function App() {
     }, 2800);
   };
 
-  // Motivational messages for badge celebration
-  const badgeMotivationMessages = [
-    'Keren banget! Terus semangat belajar ya! 💪',
-    'Hebat! Kamu sudah selangkah lebih maju! 🌟',
-    'Luar biasa! Prestasi yang membanggakan! 🏅',
-    'Mantap! Terus raih lencana berikutnya ya! 🚀',
-    'Wow, kamu juara! Jangan pernah berhenti belajar! ✨',
-  ];
-
-  const executeMinting = () => {
-    const motivation = badgeMotivationMessages[Math.floor(Math.random() * badgeMotivationMessages.length)];
-    setMintingStatusText('✨ Menyimpan Lencana ke Koleksimu...');
-    playCelebrationFanfare();
-    
-    setTimeout(() => {
-      setUnlockedBadges(prev => ({ ...prev, [activeBadgeToMint]: true }));
-      setWalletTokens(prev => prev + 1);
-      
-      const now = new Date();
-      const timestamp = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-      
-      setBlockchainLogs(prev => [
-        ...prev,
-        { timestamp, text: `Berhasil Memperoleh Lencana: Lencana ${activeBadgeToMint.toUpperCase()}` }
-      ]);
-      
-      setMintingStatusText(`🏆 ${motivation}`);
-      setBadgeClaimComplete(true);
-      setIsMintingModalOpen(false);
-      
-      // Speak congratulatory message
-      speakText(`Selamat! Kamu berhasil mendapatkan lencana ${activeBadgeToMint}. ${motivation}`, true);
-      confetti();
-    }, 1500);
-  };
-
   // Badge modal navigation handlers
   const handleBadgeBelajarLagi = () => {
     const modeToRestart = activeBadgeToMint;
     setActiveBadgeToMint(null);
     setBadgeClaimComplete(false);
-    setIsMintingModalOpen(false);
     // Re-enter the same learning mode fresh
     setSelectedMode(modeToRestart);
     setRegulerSubMode(null);
@@ -1270,7 +1257,6 @@ export default function App() {
   const handleBadgeBackToMenu = () => {
     setActiveBadgeToMint(null);
     setBadgeClaimComplete(false);
-    setIsMintingModalOpen(false);
     setSelectedMode(null);
     setRegulerSubMode(null);
     setCurrentTab('home');
@@ -1909,7 +1895,9 @@ export default function App() {
                 {activeBadgeToMint === 'reguler' ? '🎓' : activeBadgeToMint === 'adhd' ? '🎯' : activeBadgeToMint === 'tunarungu' ? '🤟' : activeBadgeToMint === 'tunanetra' ? '🎧' : '✏️'}
               </div>
               <div className="space-y-1">
-                <h3 className="font-black text-slate-800 text-sm uppercase">{badgeClaimComplete ? '🌟 Lencana Berhasil Diklaim!' : '🏆 Selamat! Lencana Baru!'}</h3>
+                <h3 className="font-black text-slate-800 text-sm uppercase">
+                  {badgeClaimComplete ? '🌟 Lencana Berhasil Diklaim!' : '🏆 Selamat! Lencana Baru!'}
+                </h3>
                 <p className="text-[10px] text-slate-500 font-semibold leading-relaxed">
                   {badgeClaimComplete 
                     ? mintingStatusText 
@@ -1932,17 +1920,11 @@ export default function App() {
                     🏠 Kembali ke Menu Utama
                   </button>
                 </div>
-              ) : isMintingModalOpen ? (
-                <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 flex flex-col items-center justify-center gap-1.5">
-                  <span className="text-[10px] font-black text-emerald-700 leading-relaxed">{mintingStatusText}</span>
-                </div>
               ) : (
-                <button
-                  onClick={executeMinting}
-                  className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-black py-3.5 rounded-2.5xl text-xs uppercase shadow-md active:scale-95 transition-all cursor-pointer border-b-4 border-teal-800"
-                >
-                  🎉 Klaim Lencana Saya!
-                </button>
+                <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 flex flex-col items-center justify-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block animate-ping"></span>
+                  <span className="text-[10px] font-black text-emerald-700">✨ Menyimpan Lencana ke Koleksimu...</span>
+                </div>
               )}
             </div>
           </div>
