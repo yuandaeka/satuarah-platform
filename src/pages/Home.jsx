@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import confetti from 'canvas-confetti';
+import logo from '../assets/logo.jpeg';
 import { playTone } from '../utils/audio';
 
 export default function Home({
@@ -25,7 +26,7 @@ export default function Home({
           <p className="text-[10px] text-slate-500 font-semibold mt-0.5">Mari asah logika koding dan kecerdasan artifisialmu! 🚀</p>
         </div>
         <div className="w-10 h-10 overflow-hidden bg-white border border-emerald-100 rounded-xl shadow-sm animate-float flex-shrink-0">
-          <img src="/logohijaufiks.jpeg" alt="Logo" className="w-full h-full object-cover" />
+          <img src={logo} alt="Logo" className="w-full h-full object-cover" />
         </div>
       </div>
 

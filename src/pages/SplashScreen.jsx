@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import logo from '../assets/logo.jpeg';
 
 export default function SplashScreen({ onFinish }) {
   const [progress, setProgress] = useState(0);
@@ -64,7 +65,7 @@ export default function SplashScreen({ onFinish }) {
         <div className="splash-logo-container">
           <div className="splash-logo-ring" />
           <div className="splash-logo overflow-hidden p-0 bg-white border-4 border-white">
-            <img src="/logohijaufiks.jpeg" alt="Logo" className="w-full h-full object-cover rounded-3xl" />
+            <img src={logo} alt="Logo" className="w-full h-full object-cover rounded-3xl" />
           </div>
         </div>
 

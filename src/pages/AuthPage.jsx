@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import logo from '../assets/logo.jpeg';
 import { playTone } from '../utils/audio';
 
 export default function AuthPage({ onLogin }) {
@@ -168,7 +169,7 @@ export default function AuthPage({ onLogin }) {
         <div className="auth-header">
           <div className="auth-logo">
             <div className="auth-logo-icon overflow-hidden p-0 bg-white">
-              <img src="/logohijaufiks.jpeg" alt="Logo" className="w-full h-full object-cover" />
+              <img src={logo} alt="Logo" className="w-full h-full object-cover" />
             </div>
           </div>
           <h2 className="auth-brand">

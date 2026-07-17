@@ -15,6 +15,7 @@ import ABKUnifiedView from './pages/modes/ABKUnifiedView';
 import { REGULER_LYRICS, TUNANETRA_STORIES, INITIAL_PLANET_CARDS } from './constants';
 import { playTone, playCelebrationFanfare } from './utils/audio';
 import { setRelaxationMusic, setRelaxationVolume } from './utils/relaxationAudio';
+import logo from './assets/logo.jpeg';
 
 
 export default function App() {
@@ -1356,7 +1357,7 @@ export default function App() {
         <header className="px-5 py-4 flex items-center justify-between border-b border-emerald-100 bg-white sticky top-0 z-30">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl shadow-sm animate-float overflow-hidden bg-white border border-emerald-100 flex-shrink-0">
-              <img src="/logohijaufiks.jpeg" alt="Logo" className="w-full h-full object-cover" />
+              <img src={logo} alt="Logo" className="w-full h-full object-cover" />
             </div>
             <div>
               <h1 className="text-sm font-black tracking-tight text-emerald-800">
