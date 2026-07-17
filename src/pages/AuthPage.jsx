@@ -167,7 +167,9 @@ export default function AuthPage({ onLogin }) {
         {/* Header / Logo */}
         <div className="auth-header">
           <div className="auth-logo">
-            <div className="auth-logo-icon">💻</div>
+            <div className="auth-logo-icon overflow-hidden p-0 bg-white">
+              <img src="/logohijaufiks.jpeg" alt="Logo" className="w-full h-full object-cover" />
+            </div>
           </div>
           <h2 className="auth-brand">
             <span className="auth-brand-satu">Satu</span>

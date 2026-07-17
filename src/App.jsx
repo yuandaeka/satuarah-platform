@@ -1355,8 +1355,8 @@ export default function App() {
         {/* APP HEADER */}
         <header className="px-5 py-4 flex items-center justify-between border-b border-emerald-100 bg-white sticky top-0 z-30">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-emerald-500 flex items-center justify-center text-white text-base shadow-sm animate-float">
-              🟢
+            <div className="w-8 h-8 rounded-xl shadow-sm animate-float overflow-hidden bg-white border border-emerald-100 flex-shrink-0">
+              <img src="/logohijaufiks.jpeg" alt="Logo" className="w-full h-full object-cover" />
             </div>
             <div>
               <h1 className="text-sm font-black tracking-tight text-emerald-800">

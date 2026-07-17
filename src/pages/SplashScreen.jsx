@@ -63,8 +63,8 @@ export default function SplashScreen({ onFinish }) {
         {/* Animated Logo */}
         <div className="splash-logo-container">
           <div className="splash-logo-ring" />
-          <div className="splash-logo">
-            💻
+          <div className="splash-logo overflow-hidden p-0 bg-white border-4 border-white">
+            <img src="/logohijaufiks.jpeg" alt="Logo" className="w-full h-full object-cover rounded-3xl" />
           </div>
         </div>
 

@@ -24,7 +24,9 @@ export default function Home({
           <h2 className="text-lg font-black text-slate-800 leading-tight">Halo, {username}!</h2>
           <p className="text-[10px] text-slate-500 font-semibold mt-0.5">Mari asah logika koding dan kecerdasan artifisialmu! 🚀</p>
         </div>
-        <span className="text-2xl animate-float">💻</span>
+        <div className="w-10 h-10 overflow-hidden bg-white border border-emerald-100 rounded-xl shadow-sm animate-float flex-shrink-0">
+          <img src="/logohijaufiks.jpeg" alt="Logo" className="w-full h-full object-cover" />
+        </div>
       </div>
 
       {/* Interactive Avatar Card */}
