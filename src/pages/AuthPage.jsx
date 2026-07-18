@@ -12,6 +12,7 @@ export default function AuthPage({ onLogin }) {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [isGuru, setIsGuru] = useState(false);
 
   // Simulated user database stored in localStorage
   const getUsers = () => {
@@ -69,6 +70,7 @@ export default function AuthPage({ onLogin }) {
         email: email.toLowerCase(),
         password: password, // In production, this should be hashed
         createdAt: new Date().toISOString(),
+        role: isGuru ? 'guru' : 'siswa',
       });
 
       setIsLoading(false);
@@ -117,7 +119,7 @@ export default function AuthPage({ onLogin }) {
     setTimeout(() => {
       setIsLoading(false);
       playTone(660, 'sine', 0.15);
-      onLogin(user.displayName);
+      onLogin(user.displayName, user.role || 'siswa', user.email);
     }, 800);
   };
 
@@ -141,7 +143,7 @@ export default function AuthPage({ onLogin }) {
       
       setIsLoading(false);
       playTone(660, 'sine', 0.15);
-      onLogin(googleUser.displayName);
+      onLogin(googleUser.displayName, googleUser.role || 'siswa', googleUser.email);
     }, 1200);
   };
 
@@ -152,6 +154,7 @@ export default function AuthPage({ onLogin }) {
     setSuccessMessage('');
     setPassword('');
     setConfirmPassword('');
+    setIsGuru(false);
   };
 
   return (
@@ -298,6 +301,42 @@ export default function AuthPage({ onLogin }) {
                 required
                 autoComplete="new-password"
               />
+            </div>
+          )}
+
+          {/* Guru Toggle (Register only) */}
+          {authMode === 'register' && (
+            <div className="auth-field auth-field-animate">
+              <button
+                type="button"
+                onClick={() => setIsGuru(!isGuru)}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl border-2 transition-all duration-300 ${
+                  isGuru
+                    ? 'bg-indigo-50 border-indigo-400 shadow-sm'
+                    : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xl">{isGuru ? '👩‍🏫' : '👤'}</span>
+                  <div className="text-left">
+                    <span className={`text-[11px] font-black block ${
+                      isGuru ? 'text-indigo-700' : 'text-slate-600'
+                    }`}>
+                      Saya adalah Guru
+                    </span>
+                    <span className="text-[8px] font-semibold text-slate-400 block mt-0.5">
+                      Aktifkan untuk akses Dashboard Monitoring Siswa
+                    </span>
+                  </div>
+                </div>
+                <div className={`w-10 h-5 rounded-full relative transition-all duration-300 ${
+                  isGuru ? 'bg-indigo-500' : 'bg-slate-300'
+                }`}>
+                  <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-300 ${
+                    isGuru ? 'left-5' : 'left-0.5'
+                  }`} />
+                </div>
+              </button>
             </div>
           )}
 

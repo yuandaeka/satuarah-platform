@@ -12,9 +12,14 @@ import TunarunguMode from './pages/modes/TunarunguMode';
 import TunanetraMode from './pages/modes/TunanetraMode';
 import DisleksiaMode from './pages/modes/DisleksiaMode';
 import ABKUnifiedView from './pages/modes/ABKUnifiedView';
+import GuruDashboard from './pages/guru/GuruDashboard';
+import GuruSiswaList from './pages/guru/GuruSiswaList';
+import GuruSiswaDetail from './pages/guru/GuruSiswaDetail';
+import GuruProfile from './pages/guru/GuruProfile';
 import { REGULER_LYRICS, TUNANETRA_STORIES, INITIAL_PLANET_CARDS } from './constants';
 import { playTone, playCelebrationFanfare } from './utils/audio';
 import { setRelaxationMusic, setRelaxationVolume } from './utils/relaxationAudio';
+import { trackLogin, trackModeAccess } from './utils/studentTracker';
 import logo from './assets/logo.jpeg';
 
 
@@ -26,8 +31,14 @@ export default function App() {
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [username, setUsername] = useState('Yuanda Eka');
+  const [userRole, setUserRole] = useState('siswa'); // 'siswa' | 'guru'
+  const [userEmail, setUserEmail] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState('🚀'); // default avatar emoji
   const [currentTab, setCurrentTab] = useState('home'); // 'home' | 'belajar' | 'profile'
+  
+  // --- Guru Dashboard States ---
+  const [guruTab, setGuruTab] = useState('dashboard'); // 'dashboard' | 'siswa' | 'profile'
+  const [guruSelectedStudent, setGuruSelectedStudent] = useState(null); // email of selected student for detail view
 
   // Callback when splash finishes loading
   const handleSplashFinish = useCallback(() => {
@@ -36,10 +47,24 @@ export default function App() {
   }, []);
 
   // Callback when auth (login/register) succeeds
-  const handleAuthLogin = useCallback((displayName) => {
+  const handleAuthLogin = useCallback((displayName, role, email) => {
     setUsername(displayName || 'Explorer');
+    setUserRole(role || 'siswa');
+    setUserEmail(email || '');
     setShowAuth(false);
     setIsLoggedIn(true);
+    
+    // Track login for students
+    if (role !== 'guru' && email) {
+      trackLogin(email);
+    }
+    
+    // Set appropriate initial tab
+    if (role === 'guru') {
+      setGuruTab('dashboard');
+    } else {
+      setCurrentTab('home');
+    }
   }, []);
 
   // --- Relaxation Music States ---
@@ -361,6 +386,12 @@ export default function App() {
     document.body.className = ''; // clear
     if (!isLoggedIn) return;
 
+    // Apply guru mode class
+    if (userRole === 'guru') {
+      document.body.classList.add('guru-mode');
+      return;
+    }
+
     if (selectedMode === 'tunanetra') {
       document.body.classList.add('mode-tunanetra');
     } else if (selectedMode === 'adhd') {
@@ -373,7 +404,14 @@ export default function App() {
     return () => {
       stopSpeaking();
     };
-  }, [selectedMode, isLoggedIn, stopSpeaking]);
+  }, [selectedMode, isLoggedIn, stopSpeaking, userRole]);
+
+  // Track student mode access for guru monitoring
+  useEffect(() => {
+    if (selectedMode && userRole === 'siswa' && userEmail && isLoggedIn) {
+      trackModeAccess(userEmail, selectedMode);
+    }
+  }, [selectedMode, userRole, userEmail, isLoggedIn]);
 
   // Relaxation Music State Manager Effect
   useEffect(() => {
@@ -1345,6 +1383,105 @@ export default function App() {
   const renderedDuration = useMemo(() => `${learningDuration} Min`, [learningDuration]);
 
   // --- RENDERING ---
+  
+  // === GURU DASHBOARD LAYOUT ===
+  if (isLoggedIn && userRole === 'guru') {
+    return (
+      <div className="min-h-screen bg-indigo-50/40 p-0 sm:py-6 flex items-center justify-center">
+        {showSplash && <SplashScreen onFinish={handleSplashFinish} />}
+        <div className="phone-container flex flex-col justify-between bubbly-card bg-white relative overflow-hidden">
+          
+          {/* GURU HEADER */}
+          <header className="px-5 py-4 flex items-center justify-between border-b border-indigo-100 bg-white sticky top-0 z-30">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl shadow-sm animate-float overflow-hidden bg-white border border-indigo-100 flex-shrink-0">
+                <img src={logo} alt="Logo" className="w-full h-full object-cover" />
+              </div>
+              <div>
+                <h1 className="text-sm font-black tracking-tight text-indigo-800">
+                  Satu<span className="text-amber-500">Arah</span>
+                </h1>
+                <p className="text-[9px] text-indigo-600/70 font-bold uppercase tracking-wider leading-none">Dashboard Guru</p>
+              </div>
+            </div>
+            <div className="bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-wider border border-indigo-200">
+              👩‍🏫 Guru
+            </div>
+          </header>
+          
+          {/* GURU MAIN CONTENT */}
+          <main className="flex-1 flex flex-col overflow-y-auto bg-slate-50 relative p-4 scrollbar-none">
+            {guruTab === 'dashboard' && (
+              <GuruDashboard
+                username={username}
+                onNavigateToSiswa={() => { setGuruTab('siswa'); setGuruSelectedStudent(null); }}
+              />
+            )}
+            
+            {guruTab === 'siswa' && !guruSelectedStudent && (
+              <GuruSiswaList
+                onSelectStudent={(email) => setGuruSelectedStudent(email)}
+              />
+            )}
+            
+            {guruTab === 'siswa' && guruSelectedStudent && (
+              <GuruSiswaDetail
+                studentEmail={guruSelectedStudent}
+                onBack={() => setGuruSelectedStudent(null)}
+              />
+            )}
+            
+            {guruTab === 'profile' && (
+              <GuruProfile
+                username={username}
+                email={userEmail}
+                onLogout={() => {
+                  setIsLoggedIn(false);
+                  setUserRole('siswa');
+                  setUserEmail('');
+                  setGuruTab('dashboard');
+                  setGuruSelectedStudent(null);
+                }}
+              />
+            )}
+          </main>
+          
+          {/* GURU FOOTER NAVIGATION */}
+          <footer className="bg-white border-t border-indigo-100 grid grid-cols-3 py-2 sticky bottom-0 z-30">
+            <button
+              onClick={() => { setGuruTab('dashboard'); setGuruSelectedStudent(null); }}
+              className={`flex flex-col items-center gap-0.5 py-1 transition-colors ${
+                guruTab === 'dashboard' ? 'text-indigo-500 font-black' : 'text-slate-500 hover:text-indigo-600 font-bold'
+              }`}
+            >
+              <span className="text-lg">🏠</span>
+              <span className="text-[9px]">Dashboard</span>
+            </button>
+            <button
+              onClick={() => { setGuruTab('siswa'); setGuruSelectedStudent(null); }}
+              className={`flex flex-col items-center gap-0.5 py-1 transition-colors ${
+                guruTab === 'siswa' ? 'text-indigo-500 font-black' : 'text-slate-500 hover:text-indigo-600 font-bold'
+              }`}
+            >
+              <span className="text-lg">👥</span>
+              <span className="text-[9px]">Siswa</span>
+            </button>
+            <button
+              onClick={() => { setGuruTab('profile'); setGuruSelectedStudent(null); }}
+              className={`flex flex-col items-center gap-0.5 py-1 transition-colors ${
+                guruTab === 'profile' ? 'text-indigo-500 font-black' : 'text-slate-500 hover:text-indigo-600 font-bold'
+              }`}
+            >
+              <span className="text-lg">👤</span>
+              <span className="text-[9px]">Profil</span>
+            </button>
+          </footer>
+        </div>
+      </div>
+    );
+  }
+
+  // === STUDENT LAYOUT (ORIGINAL) ===
   return (
     <div className="min-h-screen bg-emerald-50/40 p-0 sm:py-6 flex items-center justify-center">
       {/* SPLASH SCREEN OVERLAY */}

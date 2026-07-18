@@ -1082,3 +1082,68 @@ body.mode-adhd canvas {
   }
 }
 
+/* ================================================================== */
+/* GURU DASHBOARD THEME STYLES                                         */
+/* ================================================================== */
+
+/* Guru Gradient Card (Indigo/Blue theme) */
+.guru-gradient-card {
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 30%, #818cf8 70%, #6366f1 100%);
+  border: 3px solid rgba(99, 102, 241, 0.3);
+  box-shadow: 0 10px 0 0 rgba(79, 70, 229, 0.25), 0 16px 30px -4px rgba(79, 70, 229, 0.15);
+}
+
+/* Guru Stat Cards */
+.guru-stat-card {
+  border-color: #e0e7ff;
+  background: linear-gradient(145deg, #ffffff 0%, #eef2ff 100%);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.guru-stat-card:hover {
+  transform: translateY(-4px);
+  border-color: #c7d2fe;
+  box-shadow: 0 14px 0 0 #c7d2fe, 0 20px 28px -4px rgba(99, 102, 241, 0.1);
+}
+
+/* Guru Bottom Navigation Active State */
+.guru-nav-active {
+  color: #6366f1 !important;
+  font-weight: 900;
+}
+
+/* Guru themed bubbly cards override (when in guru mode) */
+.guru-mode .bubbly-card {
+  border-color: #e0e7ff;
+  box-shadow: 0 10px 0 0 #e0e7ff, 0 16px 24px -4px rgba(99, 102, 241, 0.06);
+}
+
+.guru-mode .bubbly-card:hover {
+  box-shadow: 0 14px 0 0 #c7d2fe, 0 20px 28px -4px rgba(99, 102, 241, 0.1);
+}
+
+/* Guru mode body background */
+.guru-mode {
+  background-color: #eef2ff !important;
+}
+
+.guru-mode .phone-container {
+  background-color: #ffffff;
+}
+
+/* Staggered animation for student cards */
+@keyframes slideInUp {
+  0% { 
+    opacity: 0; 
+    transform: translateY(20px); 
+  }
+  100% { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+.guru-mode .bubbly-card {
+  animation: slideInUp 0.4s ease-out both;
+}
+
